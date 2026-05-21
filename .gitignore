@@ -3,6 +3,7 @@ node_modules/
 .env.local
 backend/.env
 frontend/.env.local
+Frontend/.env.local
 auth/
 *.log
 dist/
