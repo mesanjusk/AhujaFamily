@@ -1,65 +1,96 @@
-const express = require("express");
-const cors = require("cors");
-const http = require("http");
-const socketIo = require("socket.io");
-const path = require("path");
-const fs = require("fs");
+require('dotenv').config()
+const express = require('express')
+const cors = require('cors')
+const http = require('http')
+const socketIo = require('socket.io')
+const path = require('path')
+const mongoose = require('mongoose')
 const {
   default: makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
-} = require("@whiskeysockets/baileys");
+} = require('@whiskeysockets/baileys')
 
-const app = express();
-const server = http.createServer(app);
-const io = socketIo(server, { cors: { origin: "*" } });
+const app = express()
+const server = http.createServer(app)
 
-app.use(cors());
-app.use(express.json());
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.SOCKET_IO_CORS_ORIGIN,
+  'http://localhost:5173',
+  'http://localhost:3000',
+].filter(Boolean)
 
-const AUTH_FOLDER = path.join(__dirname, "auth");
-let sock;
+const io = socketIo(server, {
+  cors: { origin: allowedOrigins, methods: ['GET', 'POST'] },
+})
 
-// Message Sender API
-app.post("/api/send-message", async (req, res) => {
-  const { number, message } = req.body;
+app.use(cors({ origin: allowedOrigins, credentials: true }))
+app.use(express.json())
+
+// MongoDB connection + auto-seed on first run
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(async () => {
+    console.log('MongoDB connected')
+    const Member = require('./models/Member')
+    const count = await Member.countDocuments()
+    if (count === 0) {
+      console.log('Empty database — running seed...')
+      const { runSeed } = require('./seed')
+      await runSeed()
+      console.log('Seed complete')
+    }
+  })
+  .catch(err => console.error('MongoDB error:', err))
+
+// API Routes
+app.use('/api/members', require('./routes/members'))
+app.use('/api/calendar', require('./routes/calendar'))
+app.use('/api/daycolors', require('./routes/daycolors'))
+
+// WhatsApp Message API
+const AUTH_FOLDER = path.join(__dirname, 'auth')
+let sock
+
+app.post('/api/send-message', async (req, res) => {
+  const { number, message } = req.body
   if (!number || !message)
-    return res.status(400).json({ error: "Number and message required" });
+    return res.status(400).json({ error: 'Number and message required' })
   try {
-    await sock.sendMessage(number + "@s.whatsapp.net", { text: message });
-    res.json({ success: true });
+    await sock.sendMessage(number + '@s.whatsapp.net', { text: message })
+    res.json({ success: true })
   } catch (err) {
-    console.error("Failed to send:", err);
-    res.status(500).json({ error: "Sending failed" });
+    console.error('Failed to send:', err)
+    res.status(500).json({ error: 'Sending failed' })
   }
-});
+})
 
 const startWhatsApp = async () => {
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
-  sock = makeWASocket({ auth: state });
+  try {
+    const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER)
+    sock = makeWASocket({ auth: state })
+    sock.ev.on('creds.update', saveCreds)
+    sock.ev.on('connection.update', ({ connection, qr }) => {
+      if (qr) io.emit('qr', qr)
+      if (connection === 'close') {
+        const shouldReconnect =
+          sock?.lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
+        if (shouldReconnect) startWhatsApp()
+      }
+    })
+    io.on('connection', socket => {
+      console.log('Socket connected')
+      socket.on('send-message', async ({ number, message }) => {
+        await sock.sendMessage(number + '@s.whatsapp.net', { text: message })
+      })
+    })
+  } catch (err) {
+    console.error('WhatsApp init error:', err)
+  }
+}
 
-  sock.ev.on("creds.update", saveCreds);
+startWhatsApp()
 
-  sock.ev.on("connection.update", ({ connection, qr }) => {
-    if (qr) io.emit("qr", qr);
-    if (connection === "close") {
-      const shouldReconnect =
-        sock?.lastDisconnect?.error?.output?.statusCode !==
-        DisconnectReason.loggedOut;
-      if (shouldReconnect) startWhatsApp();
-    }
-  });
-
-  io.on("connection", (socket) => {
-    console.log("⚡ Socket Connected");
-    socket.on("send-message", async ({ number, message }) => {
-      await sock.sendMessage(number + "@s.whatsapp.net", { text: message });
-    });
-  });
-};
-
-startWhatsApp();
-
-server.listen(5000, () => {
-  console.log("📦 Backend running on http://localhost:5000");
-});
+const PORT = process.env.PORT || 5000
+server.listen(PORT, () => console.log(`Backend running on port ${PORT}`))

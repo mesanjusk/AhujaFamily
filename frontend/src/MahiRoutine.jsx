@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import { api } from './api'
+import { CalendarView } from './Routine'
 
 function parseTime(str) {
   if (!str) return 0
@@ -41,119 +43,6 @@ const AREA_META = {
   '💪': { label:'Growth',    bg:'#fff8e1', color:'#f57f17' },
 }
 
-// ── Family Calendar (shared across all members)
-const FAMILY_CAL_KEY = 'family_calendar_v1'
-const DEFAULT_CAL_EVENTS = [
-  { id:1,  date:'01-12', label:'🧁 किर्ती का जन्मदिन' },
-  { id:2,  date:'01-31', label:'💞 भूमि-मुकेश Anniversary' },
-  { id:3,  date:'02-03', label:'💞 किर्ती-संजू Anniversary' },
-  { id:4,  date:'03-16', label:'🧁 अनिता जन्मदिन' },
-  { id:5,  date:'03-22', label:'🧁 सपना जन्मदिन' },
-  { id:6,  date:'10-09', label:'🧁 संजू का जन्मदिन' },
-  { id:7,  date:'12-06', label:'🧁 भूमि जन्मदिन' },
-  { id:8,  date:'12-19', label:'💞 सपना-अमर Anniversary' },
-  { id:9,  date:'12-30', label:'🧁 तम्मना जन्मदिन' },
-]
-function loadCalEvents() {
-  try { const s = localStorage.getItem(FAMILY_CAL_KEY); if (s) return JSON.parse(s) } catch {}
-  return DEFAULT_CAL_EVENTS
-}
-function saveCalEvents(ev) {
-  try { localStorage.setItem(FAMILY_CAL_KEY, JSON.stringify(ev)) } catch {}
-}
-function parseCalText(text) {
-  const MONTHS = {january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12}
-  return text.trim().split('\n').filter(l=>l.trim()).map((line,i)=>{
-    const parts = line.trim().split(/\s+/)
-    const day = parseInt(parts[0])
-    const month = MONTHS[parts[1]?.toLowerCase()]
-    if(!day||!month) return null
-    const label = parts.slice(2).join(' ').trim()
-    if(!label) return null
-    return { id: Date.now()+i, date:`${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`, label }
-  }).filter(Boolean)
-}
-
-// ── Day Colors (Vedic Astrology weekday lords)
-const DAY_COLORS = [
-  { day:'रविवार',   en:'Sunday',    color:'#d46a10', name:'नारंगी / सुनहरा', god:'☀️ सूर्य', outfits:['Orange kurta / shirt','Copper accessories','Golden dupatta / tie'], avoid:'काला / नेवी नीला' },
-  { day:'सोमवार',   en:'Monday',    color:'#90a4ae', name:'सफेद / क्रीम / सिल्वर', god:'🌙 चंद्र', outfits:['White kurta / shirt','Cream colored outfit','Silver accessories'], avoid:'काला / गाढ़ा लाल' },
-  { day:'मंगलवार',  en:'Tuesday',   color:'#c62828', name:'लाल / गुलाबी / कोरल', god:'🔴 मंगल', outfits:['Red kurta / shirt','Coral combination','Pink accessories'], avoid:'हरा / सफेद' },
-  { day:'बुधवार',   en:'Wednesday', color:'#2e7d32', name:'हरा / Grass Green', god:'💚 बुध', outfits:['Green kurta / shirt','Olive combination','Jade accessories'], avoid:'लाल / नारंगी' },
-  { day:'गुरुवार',  en:'Thursday',  color:'#f9a825', name:'पीला / केसरी / सुनहरा', god:'🟡 बृहस्पति', outfits:['Yellow kurta / shirt','Saffron combination','Gold accessories'], avoid:'काला / नेवी' },
-  { day:'शुक्रवार', en:'Friday',    color:'#e91e63', name:'सफेद / गुलाबी / हल्का नीला', god:'🌸 शुक्र', outfits:['White or pink outfit','Light blue combination','Diamond / pearl accessories'], avoid:'काला / गाढ़ा' },
-  { day:'शनिवार',   en:'Saturday',  color:'#263238', name:'काला / नेवी नीला / बैंगनी', god:'🪐 शनि', outfits:['Black / dark blue kurta','Navy combination','Iron / dark accessories'], avoid:'नारंगी / लाल' },
-]
-
-// ── Mahi-specific data
-const MAHI_MEALS = [
-  { id:0, day:'रविवार',   breakfast:'बादाम 5 + दूध + ओट्स + केला (Brain food Sunday)',        lunch:'2 रोटी + पनीर सब्जी + सलाद',        dinner:'दाल चावल + दूध (हल्का)',     tip:'☀️ Creativity day — NIFT sketching के लिए rest!' },
-  { id:1, day:'सोमवार',   breakfast:'अंडा + Brown bread 2 + 1 गिलास दूध',                      lunch:'2 रोटी + दाल + हरी सब्जी + सलाद',  dinner:'खिचड़ी + दही',               tip:'🌙 Focus Monday — Design aptitude study करें' },
-  { id:2, day:'मंगलवार',  breakfast:'बादाम 8 + Fruit bowl + Milk',                               lunch:'2 रोटी + Rajma / Chhole + सलाद',   dinner:'वेजिटेबल सूप + रोटी',        tip:'🔴 Energy day — Portfolio sketch करें!' },
-  { id:3, day:'बुधवार',   breakfast:'Sprouts + Fruit + Green tea (Budh = Intelligence)',          lunch:'2 रोटी + पालक पनीर + दाल',         dinner:'मूंग दाल + चावल',             tip:'💚 Budh Wednesday = Best day for Fashion study + Instagram!' },
-  { id:4, day:'गुरुवार',  breakfast:'Banana shake + बेसन चीला 1',                               lunch:'2 रोटी + चना दाल + आलू-गोभी',      dinner:'दाल सूप + 1 रोटी',            tip:'🟡 Wisdom Thursday — GK + Fashion History पढ़ें' },
-  { id:5, day:'शुक्रवार', breakfast:'Mango / Fruit smoothie + 2 Toast + Egg',                   lunch:'2 रोटी + Paneer / Soya + सलाद',    dinner:'रागी khichdi + दही',           tip:'🌸 SHUKRA Friday = Best Instagram Post Day! Fashion content + 1000+ followers to 10k!' },
-  { id:6, day:'शनिवार',   breakfast:'Poha + Banana + Milk',                                       lunch:'2 रोटी + Mix Veg + दाल',           dinner:'दलिया + दूध',                  tip:'🪐 Saturday = Mock Test day + Portfolio review!' },
-]
-
-const MAHI_DAY_TIPS = [
-  'Tula Lagna = Light Blue/Pink. Sunday = Sketch + rest day. Orange accessories for creativity boost!',
-  'सोमवार = White outfit = Clean, Focused look. Design aptitude day — wear white for concentration।',
-  'मंगलवार = Red elements. Rahu Dasha में bold colors = confidence. Wear a Red accessory today!',
-  'बुधवार = Green! Instagram content में भी green accents trending। Best day for Brand content creation!',
-  'गुरुवार = Yellow/Saffron dupatta या accessories। Saraswati + Guru blessing for NIFT prep!',
-  '🔥 शुक्रवार = Shukra = YOUR POWER DAY! Pink / White OOTD post करो। Max engagement आएगा! 1000+ to 10k!',
-  'शनिवार = Black / Navy accents. Sophisticated look = Fashion Entrepreneur vibes! Mock test + portfolio!',
-]
-
-const MAHI_TASKS = [
-  // 🌅 सुबह — Spiritual (6:00 - 6:30 AM)
-  { id:1,  section:'🌅 सुबह — Spiritual', time:'6:00 AM', task:'उठें — Phone नहीं (Rahu Dasha = Discipline आपका सबसे बड़ा हथियार है)', tags:['🕉️'], pinned:false, skippable:false, highImpact:false },
-  { id:2,  section:'🌅 सुबह — Spiritual', time:'6:05 AM', task:'गुनगुना पानी + माँ के साथ तुलसी पूजा — Family bond + Spiritual start', tags:['🏥','🕉️','❤️'], pinned:true, skippable:false, highImpact:false },
-  { id:4,  section:'🌅 सुबह — Spiritual', time:'6:15 AM', task:"'ॐ ऐं सरस्वत्यै नमः' 21 बार + 'ॐ शुं शुक्राय नमः' 21 बार (NIFT + Fashion)", tags:['🕉️','📚','👗'], pinned:false, skippable:false, highImpact:false },
-  { id:6,  section:'🌅 सुबह — Spiritual', time:'6:30 AM', task:'Journaling — आज के 3 NIFT Goals + 1 Fashion Design Idea लिखें', tags:['🧠','🎨'], pinned:true, skippable:false, highImpact:true },
-  // 💪 Yoga + Morning Exercise (6:45 - 7:15 AM)
-  { id:7,  section:'💪 Yoga + Morning Exercise', time:'6:45 AM', task:'Yoga — सूर्य नमस्कार 6 बार + Vrikshasana + Trikonasana (15 min)', tags:['🏥','💪'], pinned:false, skippable:false, highImpact:false },
-  { id:9,  section:'💪 Yoga + Morning Exercise', time:'7:00 AM', task:'Pranayama — अनुलोम विलोम 5 मिनट + Stretch (Focus + Calm = NIFT Exam Ready)', tags:['🏥','🧠'], pinned:false, skippable:true, highImpact:false },
-  // 🍽️ नाश्ता + तैयारी (7:15 - 7:30 AM)
-  { id:11, section:'🍽️ नाश्ता + तैयारी', time:'7:15 AM', task:'नाश्ता — पौष्टिक: बादाम 5 + अंडा/पनीर + दूध + Fruit (Brain food for NIFT prep)', tags:['🏥'], pinned:true, skippable:false, highImpact:false },
-  { id:13, section:'🍽️ नाश्ता + तैयारी', time:'7:30 AM', task:'आज का Outfit Plan — 2 मिनट fashion practice (You are a Fashion Entrepreneur!)', tags:['👗'], pinned:false, skippable:true, highImpact:false },
-  // 🎓 NIFT — Entrance Preparation (7:45 AM - 12:00 PM)
-  { id:21, section:'🎓 NIFT — Entrance Preparation', time:'7:45 AM', task:'NIFT DEEP STUDY — Design Aptitude: Shapes, Pattern, Composition, 2D/3D (30 min)', tags:['🎨','📚'], pinned:true, skippable:false, highImpact:true },
-  { id:22, section:'🎓 NIFT — Entrance Preparation', time:'8:15 AM', task:'Fashion Sketching — 1 Complete Figure + Garment Details (25 min, Portfolio build)', tags:['🎨','👗'], pinned:false, skippable:false, highImpact:true },
-  { id:23, section:'🎓 NIFT — Entrance Preparation', time:'8:45 AM', task:'English — Reading Comprehension + Vocabulary (20 min, NIFT written test)', tags:['📚','🧠'], pinned:false, skippable:false, highImpact:false },
-  { id:24, section:'🎓 NIFT — Entrance Preparation', time:'9:15 AM', task:'GK + Fashion History — Current Affairs + Art History + Designers (20 min)', tags:['📚','🧠'], pinned:false, skippable:false, highImpact:false },
-  { id:25, section:'🎓 NIFT — Entrance Preparation', time:'9:45 AM', task:'Situation Test Practice — Draping / Material Handling / 3D creation (30 min)', tags:['🎨','💪'], pinned:false, skippable:true, highImpact:false },
-  { id:26, section:'🎓 NIFT — Entrance Preparation', time:'10:15 AM', task:'NIFT Mock Test — Previous Year Paper Section (25 min, Time yourself)', tags:['📚'], pinned:false, skippable:true, highImpact:true },
-  { id:19, section:'🎓 NIFT — Entrance Preparation', time:'10:45 AM', task:'Break + Healthy Snack + पानी + 5 min Eyes Rest (आंखें NIFT के लिए precious)', tags:['🏥'], pinned:false, skippable:false, highImpact:false },
-  { id:20, section:'🎓 NIFT — Entrance Preparation', time:'11:00 AM', task:'NIFT Study Revision — Morning का सब Revise करें + 1 Sketch Portfolio entry', tags:['🎨','📚'], pinned:false, skippable:true, highImpact:false },
-  // 🏫 Coaching Classes (12:00 PM - 2:00 PM)
-  { id:18, section:'🏫 Coaching Classes', time:'12:00 PM', task:'Lunch — पोषण = Energy = NIFT performance (घर का खाना, पूरा खाएं)', tags:['🏥'], pinned:true, skippable:false, highImpact:false },
-  { id:27, section:'🏫 Coaching Classes', time:'12:30 PM', task:'Coaching Class — पूरे ध्यान से, Front पर बैठें, Notes लें (Hacks from teacher!)', tags:['📚','🧠'], pinned:true, skippable:false, highImpact:true },
-  { id:28, section:'🏫 Coaching Classes', time:'2:00 PM', task:'Coaching Homework — उसी दिन करें (3 दिन बाद काम का नहीं रहता)', tags:['📚'], pinned:false, skippable:true, highImpact:false },
-  { id:29, section:'🏫 Coaching Classes', time:'2:15 PM', task:'Coaching Notes Revise — 15 min (Spaced repetition = NIFT rank improve)', tags:['📚','🧠'], pinned:false, skippable:true, highImpact:false },
-  // 🎨 Creative Block (2:30 - 5:30 PM)
-  { id:30, section:'🎨 Creative Block', time:'2:30 PM', task:'Fashion Research — Pinterest, Vogue India, Masaba, Raw Mango (20 min)', tags:['👗','🎨'], pinned:false, skippable:true, highImpact:false },
-  { id:32, section:'🎨 Creative Block', time:'2:45 PM', task:'Mood Board Update — Canva या Sketch Book (NIFT Exam Portfolio के लिए)', tags:['🎨','👗'], pinned:false, skippable:true, highImpact:false },
-  { id:33, section:'🎨 Creative Block', time:'3:00 PM', task:'1 NIFT Design Sketch — Original, Date लिखें, Portfolio में Add करें', tags:['🎨','👗'], pinned:false, skippable:true, highImpact:true },
-  { id:36, section:'🎨 Creative Block', time:'3:15 PM', task:'Cousin के साथ Fashion Brand call — हफ्ते में 1 बार (Brand = Future)', tags:['📱','❤️'], pinned:false, skippable:true, highImpact:false },
-  // 📱 Instagram + Brand (3:30 - 5:30 PM)
-  { id:34, section:'📱 Instagram + Brand', time:'3:30 PM', task:'Instagram Content Plan — 1 Reel / Post Idea (Already 1000+ Followers! Grow to 10k)', tags:['📱','🎨'], pinned:false, skippable:true, highImpact:true },
-  { id:35, section:'📱 Instagram + Brand', time:'3:45 PM', task:'Content Create — Photo / Video / Reel (शुक्रवार = Best post day for Shukra)', tags:['📱'], pinned:false, skippable:true, highImpact:false },
-  { id:31, section:'📱 Instagram + Brand', time:'4:00 PM', task:'Engage with followers — Reply to comments + DMs (Community build करें)', tags:['📱'], pinned:false, skippable:true, highImpact:false },
-  // ❤️ परिवार + Grounding (5:30 - 8:00 PM)
-  { id:37, section:'❤️ परिवार + Grounding', time:'5:30 PM', task:'माँ के साथ बगीचे में — 15 मिनट (Grounding रोज़ = Rahu Dasha में anchor)', tags:['❤️','🏥'], pinned:true, skippable:false, highImpact:false },
-  { id:38, section:'❤️ परिवार + Grounding', time:'5:45 PM', task:'Papa के साथ — NIFT progress + Business insight (Papa = Best Mentor)', tags:['❤️'], pinned:false, skippable:true, highImpact:false },
-  { id:40, section:'❤️ परिवार + Grounding', time:'7:00 PM', task:'Family Dinner — तीनों साथ, Phone नहीं, 1 Gratitude बात सबसे', tags:['❤️','🏥'], pinned:true, skippable:false, highImpact:true },
-  // 🌙 रात — Wind Down (8:00 - 9:30 PM)
-  { id:42, section:'🌙 रात — Wind Down', time:'8:00 PM', task:'कल का NIFT Study Plan — Topic, Time Block, Target (Written plan = 80% done)', tags:['📚','🧠'], pinned:true, skippable:false, highImpact:true },
-  { id:43, section:'🌙 रात — Wind Down', time:'8:15 PM', task:'Fashion / Design Book पढ़ें — 15 min (Screen नहीं, Actual book)', tags:['📚','👗'], pinned:false, skippable:true, highImpact:false },
-  { id:44, section:'🌙 रात — Wind Down', time:'8:30 PM', task:'Gratitude Journal — आज 3 अच्छी बातें + कल के 3 NIFT Goals', tags:['🕉️','🧠'], pinned:false, skippable:true, highImpact:false },
-  { id:45, section:'🌙 रात — Wind Down', time:'8:45 PM', task:'Screen Time बंद + माँ को Good Night (आंखें + Connection रोज़)', tags:['🏥','❤️'], pinned:true, skippable:false, highImpact:false },
-  { id:47, section:'🌙 रात — Wind Down', time:'9:00 PM', task:"'ॐ ऐं सरस्वत्यै नमः' 5 बार (सोने से पहले, NIFT में Saraswati की कृपा)", tags:['🕉️'], pinned:false, skippable:true, highImpact:false },
-  { id:48, section:'🌙 रात — Wind Down', time:'9:30 PM', task:'सोएं — 8-9 घंटे (Growing age + NIFT prep = Fresh brain daily ज़रूरी)', tags:['🏥'], pinned:true, skippable:false, highImpact:false },
-]
-
 const SECTION_COLORS = {
   '🌅 सुबह — Spiritual':           { bg:'#fff5e6', accent:'#d46a10' },
   '💪 Yoga + Morning Exercise':     { bg:'#e8f5e9', accent:'#2e7d32' },
@@ -166,25 +55,37 @@ const SECTION_COLORS = {
   '🌙 रात — Wind Down':            { bg:'#fbe9e7', accent:'#7b0000' },
 }
 
-const STORAGE_KEY = 'mahi_routine_v1'
+const DONE_KEY     = 'mahi_done_v3'
+const SETTINGS_KEY = 'mahi_settings_v3'
 const DEF_SETTINGS = { dayStart:'6:00 AM', dayEnd:'9:30 PM', actualStart:'' }
 
-function loadState() {
-  try { const s = localStorage.getItem(STORAGE_KEY); if (s) return JSON.parse(s) } catch {}
-  return null
-}
-function saveState(s) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)) } catch {}
+function parseCalText(text) {
+  const MONTHS = {january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12}
+  return text.trim().split('\n').filter(l=>l.trim()).map((line)=>{
+    const parts = line.trim().split(/\s+/)
+    const day = parseInt(parts[0])
+    const month = MONTHS[parts[1]?.toLowerCase()]
+    if(!day||!month) return null
+    const label = parts.slice(2).join(' ').trim()
+    if(!label) return null
+    return { date:`${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`, label }
+  }).filter(Boolean)
 }
 
 export default function MahiRoutine() {
-  const saved = loadState()
-  const [tasks, setTasks] = useState(() =>
-    (saved?.tasks || MAHI_TASKS).map(t => ({ ...t, skippable: t.skippable !== undefined ? t.skippable : !t.pinned }))
-  )
-  const [done, setDone]         = useState(saved?.done     || {})
-  const [settings, setSettings] = useState(saved?.settings || DEF_SETTINGS)
-  const [view, setView]         = useState('today')
+  const [tasks, setTasks]           = useState([])
+  const [done, setDone]             = useState(() => { try { return JSON.parse(localStorage.getItem(DONE_KEY)) || {} } catch { return {} } })
+  const [settings, setSettings]     = useState(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || DEF_SETTINGS } catch { return DEF_SETTINGS } })
+  const [meals, setMeals]           = useState([])
+  const [mantras, setMantras]       = useState([])
+  const [weeklyPlan, setWeeklyPlan] = useState([])
+  const [dayColors, setDayColors]   = useState([])
+  const [outfitTips, setOutfitTips] = useState([])
+  const [calEvents, setCalEvents]   = useState([])
+  const [milestones, setMilestones] = useState([])
+  const [brandTips, setBrandTips]   = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [view, setView]             = useState('today')
   const [editingId, setEditingId]   = useState(null)
   const [editDraft, setEditDraft]   = useState({})
   const [addingSection, setAddingSection] = useState(null)
@@ -199,12 +100,35 @@ export default function MahiRoutine() {
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected]     = useState(new Set())
   const [mergeForm, setMergeForm]   = useState(null)
-  const [calEvents, setCalEvents] = useState(loadCalEvents)
-  const [calInput,  setCalInput]  = useState('')
+  const [calInput, setCalInput]     = useState('')
   const editRef = useRef(null)
 
-  useEffect(() => { saveState({ tasks, done, settings }) }, [tasks, done, settings])
-  useEffect(() => { saveCalEvents(calEvents) }, [calEvents])
+  useEffect(() => {
+    Promise.all([
+      api.getTasks('mahi'),
+      api.getMeals('mahi'),
+      api.getMantras('mahi', 'mantra'),
+      api.getWeekly('mahi'),
+      api.getDayColors(),
+      api.getOutfitTips('mahi'),
+      api.getCalendar(),
+      api.getExtras('mahi', 'brand_milestone'),
+      api.getExtras('mahi', 'brand_tip'),
+    ]).then(([t, m, mn, w, dc, ot, cal, ms, bt]) => {
+      setTasks(Array.isArray(t) ? t.map(x => ({...x, skippable: x.skippable !== undefined ? x.skippable : !x.pinned})) : [])
+      setMeals(Array.isArray(m) ? m : [])
+      setMantras(Array.isArray(mn) ? mn : [])
+      setWeeklyPlan(Array.isArray(w) ? w : [])
+      setDayColors(Array.isArray(dc) ? dc : [])
+      setOutfitTips(Array.isArray(ot) ? ot : [])
+      setCalEvents(Array.isArray(cal) ? cal : [])
+      setMilestones(Array.isArray(ms) ? ms : [])
+      setBrandTips(Array.isArray(bt) ? bt : [])
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => { try { localStorage.setItem(DONE_KEY, JSON.stringify(done)) } catch {} }, [done])
+  useEffect(() => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)) } catch {} }, [settings])
 
   const sections   = [...new Set(tasks.map(t => t.section))]
   const todayDone  = Object.values(done).filter(Boolean).length
@@ -231,25 +155,31 @@ export default function MahiRoutine() {
   }
 
   const startEdit = t => {
-    setEditingId(t.id)
+    setEditingId(t._id)
     setEditDraft({ time:t.time, task:t.task, tags:[...t.tags], skippable: t.skippable !== false })
     setTimeout(() => editRef.current?.focus(), 50)
   }
-  const saveEdit = () => { setTasks(tasks.map(t => t.id === editingId ? { ...t, ...editDraft } : t)); setEditingId(null) }
-  const deleteTask = id => {
-    setTasks(tasks.filter(t => t.id !== id))
+  const saveEdit = async () => {
+    const updated = await api.updateTask('mahi', editingId, editDraft)
+    setTasks(prev => prev.map(t => t._id === editingId ? { ...t, ...(updated || editDraft) } : t))
+    setEditingId(null)
+  }
+  const deleteTask = async id => {
+    await api.deleteTask('mahi', id)
+    setTasks(prev => prev.filter(t => t._id !== id))
     const nd = { ...done }; delete nd[id]; setDone(nd)
   }
-  const addTask = section => {
+  const addTask = async section => {
     if (!newTask.task.trim()) return
-    setTasks([...tasks, { id:Date.now(), section, ...newTask, pinned:false }])
+    const created = await api.addTask('mahi', { ...newTask, section, pinned:false })
+    setTasks(prev => [...prev, { ...created, skippable: created.skippable !== undefined ? created.skippable : true }])
     setNewTask({ time:'', task:'', tags:[], skippable:true })
     setAddingSection(null)
   }
 
   const onDragStart = id => setDragId(id)
   const onDragOver  = (e, id) => { e.preventDefault(); setDragOverId(id) }
-  const onDrop = targetId => {
+  const onDrop = async targetId => {
     if (dragId === targetId) return
     const arr  = [...tasks]
     const durs = arr.map((t, i) => {
@@ -257,13 +187,15 @@ export default function MahiRoutine() {
       const d = parseTime(arr[i+1].time) - parseTime(t.time)
       return (d > 0 && d <= 180) ? d : 15
     })
-    const fi = arr.findIndex(t => t.id === dragId)
-    const ti = arr.findIndex(t => t.id === targetId)
+    const fi = arr.findIndex(t => t._id === dragId)
+    const ti = arr.findIndex(t => t._id === targetId)
     const [mt] = arr.splice(fi, 1); const [md] = durs.splice(fi, 1)
     arr.splice(ti, 0, mt); durs.splice(ti, 0, md)
     let cursor = parseTime(settings.dayStart)
-    setTasks(arr.map((t, i) => { const time = fmtTime(cursor); cursor += durs[i]; return { ...t, time } }))
+    const newArr = arr.map((t, i) => { const time = fmtTime(cursor); cursor += durs[i]; return { ...t, time, order:i } })
+    setTasks(newArr)
     setDragId(null); setDragOverId(null)
+    api.batchUpdateTasks('mahi', newArr.map(t => ({ _id: t._id, time: t.time, order: t.order })))
   }
 
   const applySchedule = (newStart, newEnd) => {
@@ -281,31 +213,47 @@ export default function MahiRoutine() {
 
   const autoSkip = () => {
     const nd = { ...done }
-    tasks.forEach(t => { if (parseTime(t.time) < actualMins && t.skippable) nd[t.id] = true })
+    tasks.forEach(t => { if (parseTime(t.time) < actualMins && t.skippable) nd[t._id] = true })
     setDone(nd)
   }
 
   const openMerge = () => {
-    const sel = tasks.filter(t => selected.has(t.id)).sort((a,b) => parseTime(a.time)-parseTime(b.time))
+    const sel = tasks.filter(t => selected.has(t._id)).sort((a,b) => parseTime(a.time)-parseTime(b.time))
     if (sel.length < 2) return
     setMergeForm({ task:sel[0].task, time:sel[0].time, tags:[...new Set(sel.flatMap(t=>t.tags))], skippable:sel.some(t=>t.skippable) })
   }
-  const doMerge = () => {
+  const doMerge = async () => {
     if (!mergeForm?.task?.trim()) return
-    const insertIdx = tasks.findIndex(t => selected.has(t.id))
+    const insertIdx = tasks.findIndex(t => selected.has(t._id))
     const section   = tasks[insertIdx]?.section || sections[0]
-    const rest      = tasks.filter(t => !selected.has(t.id))
-    rest.splice(insertIdx, 0, { id:Date.now(), section, ...mergeForm, pinned:false })
+    await Promise.all([...selected].map(id => api.deleteTask('mahi', id)))
+    const created = await api.addTask('mahi', { ...mergeForm, section, pinned:false })
+    const rest = tasks.filter(t => !selected.has(t._id))
+    rest.splice(insertIdx, 0, { ...created, skippable: created.skippable !== undefined ? created.skippable : true })
     setTasks(rest)
     const nd = { ...done }; selected.forEach(id => delete nd[id]); setDone(nd)
     setSelected(new Set()); setSelectMode(false); setMergeForm(null)
   }
 
   const resetDay = () => { setDone({}); setConfirmReset(false) }
-  const resetAll = () => {
-    setTasks(MAHI_TASKS.map(t => ({ ...t, skippable: t.skippable !== undefined ? t.skippable : !t.pinned })))
+  const resetAll = async () => {
+    const fresh = await api.resetTasks('mahi')
+    setTasks(Array.isArray(fresh) ? fresh.map(t => ({...t, skippable: t.skippable !== undefined ? t.skippable : !t.pinned})) : [])
     setDone({}); setSettings(DEF_SETTINGS); setConfirmReset(false)
   }
+
+  const addCalEvent = async () => {
+    const parsed = parseCalText(calInput)
+    if (!parsed.length) return
+    const created = await Promise.all(parsed.map(ev => api.addCalEvent(ev)))
+    setCalEvents(prev => [...prev, ...created])
+    setCalInput('')
+  }
+  const deleteCalEvent = async id => {
+    await api.deleteCalEvent(id)
+    setCalEvents(prev => prev.filter(e => e._id !== id))
+  }
+
   const sc = sec => SECTION_COLORS[sec] || { bg:'#f9f9f9', accent:PINK }
 
   const filterAreas = ['ALL', '⚡ Impact', ...Object.keys(AREA_META)]
@@ -314,6 +262,8 @@ export default function MahiRoutine() {
     const sOk = !searchQ || t.task.toLowerCase().includes(searchQ.toLowerCase()) || t.time.includes(searchQ)
     return aOk && sOk
   })
+
+  if (loading) return <div style={{padding:40,textAlign:'center',color:PINK,fontSize:16}}>👗 लोड हो रहा है...</div>
 
   return (
     <div style={S.root}>
@@ -432,7 +382,7 @@ export default function MahiRoutine() {
           const secTasks=filtered.filter(t=>t.section===sec)
           if(!secTasks.length) return null
           const c=sc(sec)
-          const secDone=secTasks.filter(t=>done[t.id]).length
+          const secDone=secTasks.filter(t=>done[t._id]).length
           return (
             <div key={sec} style={{...S.section,background:c.bg}}>
               <div style={{...S.secHeader,borderLeftColor:c.accent}}>
@@ -440,20 +390,20 @@ export default function MahiRoutine() {
                 <span style={{...S.secBadge,background:c.accent}}>{secDone}/{secTasks.length}</span>
               </div>
               {secTasks.map(t=>{
-                const status=getStatus(t), isSel=selected.has(t.id)
+                const status=getStatus(t), isSel=selected.has(t._id)
                 return (
-                  <div key={t.id} draggable={!selectMode}
-                    onDragStart={()=>onDragStart(t.id)} onDragOver={e=>onDragOver(e,t.id)} onDrop={()=>onDrop(t.id)}
+                  <div key={t._id} draggable={!selectMode}
+                    onDragStart={()=>onDragStart(t._id)} onDragOver={e=>onDragOver(e,t._id)} onDrop={()=>onDrop(t._id)}
                     style={{
                       ...S.taskCard,
-                      ...(done[t.id]?S.taskDone:{}),
+                      ...(done[t._id]?S.taskDone:{}),
                       ...(status==='skipped'?S.taskSkipped:{}),
                       ...(status==='missed'?S.taskMissed:{}),
-                      ...(dragOverId===t.id?S.taskDragOver:{}),
+                      ...(dragOverId===t._id?S.taskDragOver:{}),
                       ...(isSel?S.taskSelected:{}),
                       borderLeft: t.highImpact ? '4px solid #ffd700' : `4px solid ${status==='missed'?'#b71c1c':c.accent}`,
                     }}>
-                    {editingId===t.id?(
+                    {editingId===t._id?(
                       <div style={S.editBox}>
                         <input ref={editRef} value={editDraft.time} onChange={e=>setEditDraft({...editDraft,time:e.target.value})} style={S.editInput} placeholder='Time'/>
                         <textarea value={editDraft.task} onChange={e=>setEditDraft({...editDraft,task:e.target.value})} style={S.editTextarea} rows={2}/>
@@ -473,9 +423,9 @@ export default function MahiRoutine() {
                         </div>
                       </div>
                     ):(
-                      <div style={S.taskRow} onClick={()=>toggle(t.id)}>
-                        <div style={{...S.checkbox,...((selectMode?isSel:done[t.id])?S.cbDone:{}),borderColor:c.accent}}>
-                          {(selectMode?isSel:done[t.id])&&<span style={S.checkMark}>✓</span>}
+                      <div style={S.taskRow} onClick={()=>toggle(t._id)}>
+                        <div style={{...S.checkbox,...((selectMode?isSel:done[t._id])?S.cbDone:{}),borderColor:c.accent}}>
+                          {(selectMode?isSel:done[t._id])&&<span style={S.checkMark}>✓</span>}
                         </div>
                         <div style={S.taskContent}>
                           <div style={{...S.taskTime,color:c.accent}}>
@@ -485,7 +435,7 @@ export default function MahiRoutine() {
                             {status==='missed'&&<span style={S.missedBadge}>MISSED</span>}
                             {status==='skipped'&&<span style={S.skippedBadge}>⏭️ SKIP</span>}
                           </div>
-                          <div style={{...S.taskText,...((done[t.id]||status==='skipped')?S.taskStrike:{})}}>{t.task}</div>
+                          <div style={{...S.taskText,...((done[t._id]||status==='skipped')?S.taskStrike:{})}}>{t.task}</div>
                           <div style={S.tagRow}>
                             {t.tags.map(tag=>(
                               <span key={tag} style={{...S.tag,background:AREA_META[tag]?.bg||'#eee',color:AREA_META[tag]?.color||'#666'}}>{tag} {AREA_META[tag]?.label}</span>
@@ -495,7 +445,7 @@ export default function MahiRoutine() {
                         {!selectMode&&(
                           <div style={S.taskActions} onClick={e=>e.stopPropagation()}>
                             <button onClick={()=>startEdit(t)} style={S.iconBtn}>✏️</button>
-                            <button onClick={()=>deleteTask(t.id)} style={S.iconBtn}>🗑️</button>
+                            <button onClick={()=>deleteTask(t._id)} style={S.iconBtn}>🗑️</button>
                             <span style={S.dragHandle}>⠿</span>
                           </div>
                         )}
@@ -548,109 +498,77 @@ export default function MahiRoutine() {
         </div>
       </>}
 
-      {view==='weekly'  && <MahiWeekly />}
-      {view==='brand'   && <MahiBrand />}
-      {view==='mantras' && <MahiMantras />}
+      {view==='weekly'  && <MahiWeekly weeklyPlan={weeklyPlan} />}
+      {view==='brand'   && <MahiBrand milestones={milestones} brandTips={brandTips} />}
+      {view==='mantras' && <MahiMantras mantras={mantras} />}
 
       {view==='outfit' && (() => {
-        const dc = DAY_COLORS[new Date().getDay()]
-        const tip = MAHI_DAY_TIPS[new Date().getDay()]
+        const dc = dayColors.find(c => c.dayIndex === new Date().getDay()) || {}
+        const tip = outfitTips.find(t => t.dayIndex === new Date().getDay())?.tip || ''
         return (
           <div style={{padding:'16px 14px'}}>
             <div style={{fontSize:20,fontWeight:800,color:PINK,marginBottom:4}}>💃 आज का Outfit — माही</div>
             <div style={{fontSize:12,color:'#888',marginBottom:16}}>Vedic Astrology based daily color guide</div>
-            <div style={{background:`linear-gradient(135deg,${dc.color},${dc.color}cc)`,borderRadius:16,padding:20,color:'#fff',marginBottom:16,textAlign:'center'}}>
-              <div style={{fontSize:28,marginBottom:4}}>{dc.god}</div>
-              <div style={{fontSize:16,fontWeight:800}}>{dc.day} — {dc.en}</div>
-              <div style={{fontSize:22,fontWeight:900,marginTop:8,marginBottom:4}}>{dc.name}</div>
-              <div style={{fontSize:13,opacity:0.9}}>आज का शुभ रंग</div>
-            </div>
-            <div style={{background:'#fff',borderRadius:16,padding:16,marginBottom:12,border:'2px solid #eee'}}>
-              <div style={{fontSize:14,fontWeight:700,color:'#333',marginBottom:10}}>👗 Outfit Suggestions:</div>
-              {dc.outfits.map((o,i)=>(
-                <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',borderBottom:i<dc.outfits.length-1?'1px solid #f0f0f0':'none'}}>
-                  <div style={{width:12,height:12,borderRadius:'50%',background:dc.color,flexShrink:0}}/>
-                  <span style={{fontSize:14}}>{o}</span>
+            {dc.color && (
+              <>
+                <div style={{background:`linear-gradient(135deg,${dc.color},${dc.color}cc)`,borderRadius:16,padding:20,color:'#fff',marginBottom:16,textAlign:'center'}}>
+                  <div style={{fontSize:28,marginBottom:4}}>{dc.god}</div>
+                  <div style={{fontSize:16,fontWeight:800}}>{dc.day} — {dc.en}</div>
+                  <div style={{fontSize:22,fontWeight:900,marginTop:8,marginBottom:4}}>{dc.name}</div>
+                  <div style={{fontSize:13,opacity:0.9}}>आज का शुभ रंग</div>
                 </div>
-              ))}
-            </div>
-            <div style={{background:'#fdf5f7',borderRadius:16,padding:16,marginBottom:12,border:`2px solid ${PINK}`}}>
-              <div style={{fontSize:13,fontWeight:700,color:'#7b0000',marginBottom:6}}>🌟 Personal Tip — Rahu Dasha + Tula Lagna:</div>
-              <div style={{fontSize:13,color:'#333',lineHeight:1.6}}>{tip}</div>
-            </div>
-            <div style={{background:'#fff0f0',borderRadius:12,padding:12,border:'1px solid #ffcdd2'}}>
-              <div style={{fontSize:13,fontWeight:700,color:'#c62828',marginBottom:4}}>❌ आज Avoid करें:</div>
-              <div style={{fontSize:13,color:'#555'}}>{dc.avoid}</div>
-            </div>
+                <div style={{background:'#fff',borderRadius:16,padding:16,marginBottom:12,border:'2px solid #eee'}}>
+                  <div style={{fontSize:14,fontWeight:700,color:'#333',marginBottom:10}}>👗 Outfit Suggestions:</div>
+                  {(dc.outfits||[]).map((o,i)=>(
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',borderBottom:i<(dc.outfits||[]).length-1?'1px solid #f0f0f0':'none'}}>
+                      <div style={{width:12,height:12,borderRadius:'50%',background:dc.color,flexShrink:0}}/>
+                      <span style={{fontSize:14}}>{o}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            {tip && (
+              <div style={{background:'#fdf5f7',borderRadius:16,padding:16,marginBottom:12,border:`2px solid ${PINK}`}}>
+                <div style={{fontSize:13,fontWeight:700,color:'#7b0000',marginBottom:6}}>🌟 Personal Tip — Rahu Dasha + Tula Lagna:</div>
+                <div style={{fontSize:13,color:'#333',lineHeight:1.6}}>{tip}</div>
+              </div>
+            )}
+            {dc.avoid && (
+              <div style={{background:'#fff0f0',borderRadius:12,padding:12,border:'1px solid #ffcdd2'}}>
+                <div style={{fontSize:13,fontWeight:700,color:'#c62828',marginBottom:4}}>❌ आज Avoid करें:</div>
+                <div style={{fontSize:13,color:'#555'}}>{dc.avoid}</div>
+              </div>
+            )}
           </div>
         )
       })()}
 
-      {view==='calendar' && (() => {
-        const today = new Date()
-        const MONTH_HI = ['','जनवरी','फरवरी','मार्च','अप्रैल','मई','जून','जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर']
-        const withDays = calEvents.map(e=>{
-          const [mm,dd]=e.date.split('-').map(Number)
-          const next=new Date(today.getFullYear(),mm-1,dd)
-          if(next<today&&!(next.getMonth()===today.getMonth()&&next.getDate()===today.getDate())) next.setFullYear(today.getFullYear()+1)
-          return{...e,daysAway:Math.round((next-today)/(864e5)),mm,dd}
-        }).sort((a,b)=>a.daysAway-b.daysAway)
-        const upcoming=withDays.filter(e=>e.daysAway<=60)
-        const byMonth={}
-        calEvents.forEach(e=>{const mm=parseInt(e.date.split('-')[0]);if(!byMonth[mm])byMonth[mm]=[];byMonth[mm].push(e)})
-        const parsed = parseCalText(calInput)
-        return (
-          <div style={{padding:'16px 14px'}}>
-            <div style={{fontSize:20,fontWeight:800,color:PINK,marginBottom:16}}>📆 परिवार Calendar</div>
-            {upcoming.length>0&&<>
-              <div style={{fontSize:13,fontWeight:700,color:'#555',marginBottom:10}}>🔔 अगले 60 दिनों में ({upcoming.length})</div>
-              {upcoming.map(e=>(
-                <div key={e.id} style={{background:e.daysAway<=7?'#fce4ec':'#f9f9f9',border:`2px solid ${e.daysAway<=7?PINK:'#ddd'}`,borderRadius:12,padding:'12px 14px',marginBottom:8}}>
-                  <div style={{fontSize:15,fontWeight:700}}>{e.label}</div>
-                  <div style={{fontSize:12,color:'#888',marginTop:4}}>{MONTH_HI[e.mm]} {e.dd} • {e.daysAway===0?'🎉 आज!':`${e.daysAway} दिन बाद`}</div>
-                </div>
-              ))}
-              <div style={{height:8}}/>
-            </>}
-            <div style={{fontSize:13,fontWeight:700,color:'#555',marginBottom:10}}>📅 सभी Events ({calEvents.length})</div>
-            {Object.keys(byMonth).sort((a,b)=>+a-+b).map(mm=>(
-              <div key={mm} style={{marginBottom:12}}>
-                <div style={{fontSize:11,fontWeight:800,color:PINK,marginBottom:6,letterSpacing:1}}>{MONTH_HI[+mm].toUpperCase()}</div>
-                {byMonth[mm].sort((a,b)=>a.date.localeCompare(b.date)).map(e=>(
-                  <div key={e.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 10px',background:'#fff',border:'1px solid #eee',borderRadius:8,marginBottom:4}}>
-                    <span style={{fontSize:14}}>{parseInt(e.date.split('-')[1])} — {e.label}</span>
-                    <button onClick={()=>setCalEvents(prev=>prev.filter(x=>x.id!==e.id))} style={{background:'none',border:'none',cursor:'pointer',fontSize:18,color:'#bbb',padding:'0 4px'}}>✕</button>
-                  </div>
-                ))}
-              </div>
-            ))}
-            <div style={{marginTop:16,padding:14,background:'#fdf5f7',borderRadius:12,border:`2px solid ${PINK}`}}>
-              <div style={{fontSize:13,fontWeight:700,color:'#7b0000',marginBottom:4}}>➕ New Event जोड़ें</div>
-              <div style={{fontSize:11,color:'#888',marginBottom:8}}>Format: "12 January 🧁 Kirti" (एक line = एक event)</div>
-              <textarea value={calInput} onChange={e=>setCalInput(e.target.value)}
-                placeholder={'12 January 🧁Kirti\n31 January 💞 Bhumi-Mukesh\n03 February 💞 Kirti-Sanju'}
-                style={{width:'100%',padding:'10px',borderRadius:8,border:'1px solid #ddd',fontSize:12,fontFamily:'inherit',minHeight:80,boxSizing:'border-box',resize:'vertical'}}/>
-              <button onClick={()=>{if(parsed.length>0){setCalEvents(prev=>[...prev,...parsed]);setCalInput('')}}}
-                style={{marginTop:8,width:'100%',padding:'10px',background:parsed.length>0?PINK:'#bbb',color:'#fff',border:'none',borderRadius:8,fontWeight:700,fontSize:14,cursor:parsed.length>0?'pointer':'not-allowed'}}>
-                ✓ Calendar में जोड़ें {parsed.length>0?`(${parsed.length} events)`:''}
-              </button>
-            </div>
-          </div>
-        )
-      })()}
+      {view==='calendar' && (
+        <CalendarView
+          calEvents={calEvents}
+          calInput={calInput}
+          setCalInput={setCalInput}
+          addCalEvent={addCalEvent}
+          deleteCalEvent={deleteCalEvent}
+          accentColor={PINK}
+        />
+      )}
 
       {view==='meals' && (() => {
         const todayIdx = new Date().getDay()
-        const meal = MAHI_MEALS[todayIdx]
+        const meal = meals.find(m => m.dayIndex === todayIdx) || {}
         return (
           <div style={{padding:'16px 14px'}}>
             <div style={{fontSize:20,fontWeight:800,color:PINK,marginBottom:4}}>🍽️ Meals — माही</div>
             <div style={{fontSize:12,color:'#888',marginBottom:16}}>NIFT prep + Growing age + Rahu Dasha आधारित</div>
-            <div style={{background:`linear-gradient(135deg,${PINK},${DPINK})`,borderRadius:16,padding:16,color:'#fff',marginBottom:16}}>
-              <div style={{fontSize:13,opacity:0.9}}>आज: {meal.day}</div>
-              <div style={{fontSize:15,fontWeight:800,marginTop:4}}>{meal.tip}</div>
-            </div>
-            {[['🌅 नाश्ता (Breakfast)',meal.breakfast,'7:15 AM'],['🍛 दोपहर का खाना (Lunch)',meal.lunch,'12:00 PM'],['🌙 रात का खाना (Dinner)',meal.dinner,'7:00 PM']].map(([title,content,time])=>(
+            {meal.tip && (
+              <div style={{background:`linear-gradient(135deg,${PINK},${DPINK})`,borderRadius:16,padding:16,color:'#fff',marginBottom:16}}>
+                <div style={{fontSize:13,opacity:0.9}}>आज: {meal.day}</div>
+                <div style={{fontSize:15,fontWeight:800,marginTop:4}}>{meal.tip}</div>
+              </div>
+            )}
+            {meal.breakfast && [['🌅 नाश्ता (Breakfast)',meal.breakfast,'7:15 AM'],['🍛 दोपहर का खाना (Lunch)',meal.lunch,'12:00 PM'],['🌙 रात का खाना (Dinner)',meal.dinner,'7:00 PM']].map(([title,content,time])=>(
               <div key={title} style={{background:'#fff',borderRadius:12,padding:16,marginBottom:12,border:'1px solid #eee'}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
                   <div style={{fontSize:14,fontWeight:700}}>{title}</div>
@@ -665,9 +583,9 @@ export default function MahiRoutine() {
             </div>
             <div style={{marginTop:16}}>
               <div style={{fontSize:13,fontWeight:700,color:'#555',marginBottom:8}}>📅 Weekly Meal Plan</div>
-              {MAHI_MEALS.map((m,i)=>(
-                <div key={i} style={{background:i===todayIdx?'#fdf5f7':'#f9f9f9',border:`1px solid ${i===todayIdx?PINK:'#eee'}`,borderRadius:10,padding:10,marginBottom:6}}>
-                  <div style={{fontSize:12,fontWeight:800,color:i===todayIdx?PINK:'#333',marginBottom:4}}>{m.day} {i===todayIdx?'← आज':''}</div>
+              {meals.map((m,i)=>(
+                <div key={m.dayIndex??i} style={{background:m.dayIndex===todayIdx?'#fdf5f7':'#f9f9f9',border:`1px solid ${m.dayIndex===todayIdx?PINK:'#eee'}`,borderRadius:10,padding:10,marginBottom:6}}>
+                  <div style={{fontSize:12,fontWeight:800,color:m.dayIndex===todayIdx?PINK:'#333',marginBottom:4}}>{m.day} {m.dayIndex===todayIdx?'← आज':''}</div>
                   <div style={{fontSize:11,color:'#666'}}>{m.breakfast}</div>
                 </div>
               ))}
@@ -691,85 +609,49 @@ export default function MahiRoutine() {
   )
 }
 
-function MahiWeekly() {
-  const days = [
-    { day:'सोमवार 🌙', focus:'Study + Fashion Research', color:'#1a237e', tip:'Weekly study targets set करें', remedy:'शिव मंदिर — माँ के साथ' },
-    { day:'मंगलवार 🔴', focus:'Creative + Sketching', color:'#b71c1c', tip:'New fashion design try करें', remedy:'हनुमान जी — माँ के साथ' },
-    { day:'बुधवार 💚', focus:'Study Deep Work', color:'#00695c', tip:'Toughest subject आज पढ़ें', remedy:"'ॐ बुं बुधाय नमः' 21 बार" },
-    { day:'गुरुवार 🌕', focus:'Brand Planning', color:'#4a148c', tip:'Cousin के साथ Brand meeting', remedy:'पीला रंग पहनें' },
-    { day:'शुक्रवार 💕', focus:'Instagram + Content', color:'#880e4f', tip:'Best content post करें आज', remedy:"'ॐ शुं शुक्राय नमः' 108 बार" },
-    { day:'शनिवार 🪐', focus:'Portfolio + Mood Board', color:'#37474f', tip:'Weekly creative review', remedy:'माँ के साथ Satsang' },
-    { day:'रविवार ☀️', focus:'REST + Family', color:'#e65100', tip:'Family + बगीचे में time', remedy:'माँ के साथ — AOL practice' },
-  ]
+function MahiWeekly({ weeklyPlan }) {
   return (
     <div style={{padding:'10px 10px 20px'}}>
-      {days.map(d=>(
-        <div key={d.day} style={{background:'#fff',borderRadius:14,padding:'14px 16px',marginBottom:10,borderTop:`4px solid ${d.color}`,boxShadow:'0 2px 8px rgba(0,0,0,0.07)'}}>
-          <div style={{fontSize:16,fontWeight:800,color:d.color,marginBottom:4}}>{d.day}</div>
+      {weeklyPlan.map((d,i)=>(
+        <div key={d.day||i} style={{background:'#fff',borderRadius:14,padding:'14px 16px',marginBottom:10,borderTop:`4px solid ${d.color||PINK}`,boxShadow:'0 2px 8px rgba(0,0,0,0.07)'}}>
+          <div style={{fontSize:16,fontWeight:800,color:d.color||PINK,marginBottom:4}}>{d.day}</div>
           <div style={{fontSize:13,fontWeight:700,color:'#333',marginBottom:6}}>{d.focus}</div>
-          <div style={{fontSize:12,color:'#555',marginBottom:3}}>💡 {d.tip}</div>
-          <div style={{fontSize:12,color:'#888'}}>🕉️ {d.remedy}</div>
+          {d.tip && <div style={{fontSize:12,color:'#555',marginBottom:3}}>💡 {d.tip}</div>}
+          {d.remedy && <div style={{fontSize:12,color:'#888'}}>🕉️ {d.remedy}</div>}
         </div>
       ))}
     </div>
   )
 }
 
-function MahiBrand() {
-  const milestones = [
-    { year:'अभी', goal:'Instagram Account — Fashion niche (Already 1000+ Followers!)', status:'🟡', color:'#f57f17' },
-    { year:'2025', goal:'NIFT/Pearl Academy — Fashion Communication Admission', status:'🎯', color:'#1a237e' },
-    { year:'2026', goal:'10,000 Genuine Followers — Fashion Brand Identity', status:'📈', color:'#00695c' },
-    { year:'2027', goal:'Cousin के साथ Brand Partnership official', status:'👥', color:'#6a1b9a' },
-    { year:'2028', goal:'Internship — Vogue/Myntra/Nykaa Fashion', status:'💼', color:'#880e4f' },
-    { year:'2029', goal:'Graduate + Brand Soft Launch', status:'🚀', color:'#c2185b' },
-    { year:'2031', goal:'50K+ Followers + Major Brand Deals', status:'🌟', color:'#d46a10' },
-    { year:'2035', goal:'Established Fashion Brand — ₹5 Crore+', status:'👑', color:'#b8860b' },
-  ]
-  const tips = [
-    "Brand Name: अपना नाम या कुछ unique — Elegant + Indian",
-    "Brand Colors: Cream, Sage Green, Gold — शुक्र के रंग",
-    "Niche: 'Design Student Life' — लगभग खाली है!",
-    "Tagline: 'Design your life, Brand your story'",
-    "पिता का Printing = Packaging FREE | Marketing FREE",
-    "मामा = Ethnic vendor network | मौसी = Production support",
-  ]
+function MahiBrand({ milestones, brandTips }) {
   return (
     <div style={{padding:'10px 10px 20px'}}>
       <div style={{fontSize:16,fontWeight:800,color:DPINK,textAlign:'center',padding:'8px 0 12px'}}>👗 Fashion Brand Roadmap</div>
       {milestones.map((m,i)=>(
-        <div key={i} style={{background:'#fff',borderRadius:12,padding:'12px 14px',marginBottom:8,borderLeft:`4px solid ${m.color}`,boxShadow:'0 1px 5px rgba(0,0,0,0.06)',display:'flex',gap:12,alignItems:'center'}}>
+        <div key={i} style={{background:'#fff',borderRadius:12,padding:'12px 14px',marginBottom:8,borderLeft:`4px solid ${m.color||DPINK}`,boxShadow:'0 1px 5px rgba(0,0,0,0.06)',display:'flex',gap:12,alignItems:'center'}}>
           <div style={{fontSize:24}}>{m.status}</div>
           <div>
-            <div style={{fontSize:12,fontWeight:800,color:m.color,marginBottom:2}}>{m.year}</div>
+            <div style={{fontSize:12,fontWeight:800,color:m.color||DPINK,marginBottom:2}}>{m.year}</div>
             <div style={{fontSize:13,color:'#222'}}>{m.goal}</div>
           </div>
         </div>
       ))}
       <div style={{fontSize:16,fontWeight:800,color:DPINK,textAlign:'center',padding:'12px 0 8px'}}>💡 Brand Tips</div>
-      {tips.map((t,i)=>(
-        <div key={i} style={{background:'#fce4ec',borderRadius:10,padding:'10px 14px',marginBottom:6,fontSize:12,color:DPINK,fontWeight:600}}>✨ {t}</div>
+      {brandTips.map((t,i)=>(
+        <div key={i} style={{background:'#fce4ec',borderRadius:10,padding:'10px 14px',marginBottom:6,fontSize:12,color:DPINK,fontWeight:600}}>✨ {t.tip}</div>
       ))}
     </div>
   )
 }
 
-function MahiMantras() {
-  const mantras = [
-    { when:'रोज सुबह', mantra:"'ॐ ऐं सरस्वत्यै नमः' — 21 बार", benefit:'Studies + Creativity + Art', color:'#1a237e' },
-    { when:'रोज सुबह', mantra:"'ॐ शुं शुक्राय नमः' — 21 बार", benefit:'Fashion + Beauty + Success', color:'#880e4f' },
-    { when:'शुक्रवार', mantra:"'ॐ शुं शुक्राय नमः' — 108 बार", benefit:'Brand Growth + Instagram', color:'#c2185b' },
-    { when:'बुधवार', mantra:"'ॐ बुं बुधाय नमः' — 21 बार", benefit:'Communication + Study Focus', color:'#00695c' },
-    { when:'शनिवार', mantra:"'ॐ रां राहवे नमः' — 108 बार", benefit:'Social Media + Mass Appeal', color:'#37474f' },
-    { when:'Exam से पहले', mantra:"'ॐ ऐं ह्रीं क्लीं' — 21 बार", benefit:'Memory + Concentration', color:'#6a1b9a' },
-    { when:'रात रोज', mantra:'Gratitude + 3 अच्छी बातें', benefit:'Positive mindset + Sleep', color:'#7b0000' },
-  ]
+function MahiMantras({ mantras }) {
   return (
     <div style={{padding:'10px 10px 20px'}}>
       <div style={{fontSize:16,fontWeight:800,color:DPINK,textAlign:'center',padding:'8px 0 12px'}}>🕉️ माही के Mantras</div>
       {mantras.map((m,i)=>(
-        <div key={i} style={{background:'#fff',borderRadius:12,padding:'12px 14px',marginBottom:8,borderLeft:`4px solid ${m.color}`,boxShadow:'0 1px 5px rgba(0,0,0,0.06)'}}>
-          <div style={{fontSize:11,fontWeight:800,color:m.color,marginBottom:3}}>{m.when}</div>
+        <div key={i} style={{background:'#fff',borderRadius:12,padding:'12px 14px',marginBottom:8,borderLeft:`4px solid ${m.color||DPINK}`,boxShadow:'0 1px 5px rgba(0,0,0,0.06)'}}>
+          <div style={{fontSize:11,fontWeight:800,color:m.color||DPINK,marginBottom:3}}>{m.when}</div>
           <div style={{fontSize:14,fontWeight:700,color:'#222',marginBottom:3}}>{m.mantra}</div>
           <div style={{fontSize:11,color:'#666'}}>✨ {m.benefit}</div>
         </div>

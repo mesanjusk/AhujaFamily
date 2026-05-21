@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import { api } from './api'
+import { CalendarView } from './Routine'
 
 function parseTime(str) {
   if (!str) return 0
@@ -41,126 +43,6 @@ const AREA_META = {
   '🌸': { label:'Self Care', bg:'#f3e5f5', color:'#6a1b9a' },
 }
 
-// ── Family Calendar (shared across all members)
-const FAMILY_CAL_KEY = 'family_calendar_v1'
-const DEFAULT_CAL_EVENTS = [
-  { id:1,  date:'01-12', label:'🧁 किर्ती का जन्मदिन' },
-  { id:2,  date:'01-31', label:'💞 भूमि-मुकेश Anniversary' },
-  { id:3,  date:'02-03', label:'💞 किर्ती-संजू Anniversary' },
-  { id:4,  date:'03-16', label:'🧁 अनिता जन्मदिन' },
-  { id:5,  date:'03-22', label:'🧁 सपना जन्मदिन' },
-  { id:6,  date:'10-09', label:'🧁 संजू का जन्मदिन' },
-  { id:7,  date:'12-06', label:'🧁 भूमि जन्मदिन' },
-  { id:8,  date:'12-19', label:'💞 सपना-अमर Anniversary' },
-  { id:9,  date:'12-30', label:'🧁 तम्मना जन्मदिन' },
-]
-function loadCalEvents() {
-  try { const s = localStorage.getItem(FAMILY_CAL_KEY); if (s) return JSON.parse(s) } catch {}
-  return DEFAULT_CAL_EVENTS
-}
-function saveCalEvents(ev) {
-  try { localStorage.setItem(FAMILY_CAL_KEY, JSON.stringify(ev)) } catch {}
-}
-function parseCalText(text) {
-  const MONTHS = {january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12}
-  return text.trim().split('\n').filter(l=>l.trim()).map((line,i)=>{
-    const parts = line.trim().split(/\s+/)
-    const day = parseInt(parts[0])
-    const month = MONTHS[parts[1]?.toLowerCase()]
-    if(!day||!month) return null
-    const label = parts.slice(2).join(' ').trim()
-    if(!label) return null
-    return { id: Date.now()+i, date:`${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`, label }
-  }).filter(Boolean)
-}
-
-// ── Day Colors (Vedic Astrology weekday lords)
-const DAY_COLORS = [
-  { day:'रविवार',   en:'Sunday',    color:'#d46a10', name:'नारंगी / सुनहरा', god:'☀️ सूर्य', outfits:['Orange kurta / shirt','Copper accessories','Golden dupatta / tie'], avoid:'काला / नेवी नीला' },
-  { day:'सोमवार',   en:'Monday',    color:'#90a4ae', name:'सफेद / क्रीम / सिल्वर', god:'🌙 चंद्र', outfits:['White kurta / shirt','Cream colored outfit','Silver accessories'], avoid:'काला / गाढ़ा लाल' },
-  { day:'मंगलवार',  en:'Tuesday',   color:'#c62828', name:'लाल / गुलाबी / कोरल', god:'🔴 मंगल', outfits:['Red kurta / shirt','Coral combination','Pink accessories'], avoid:'हरा / सफेद' },
-  { day:'बुधवार',   en:'Wednesday', color:'#2e7d32', name:'हरा / Grass Green', god:'💚 बुध', outfits:['Green kurta / shirt','Olive combination','Jade accessories'], avoid:'लाल / नारंगी' },
-  { day:'गुरुवार',  en:'Thursday',  color:'#f9a825', name:'पीला / केसरी / सुनहरा', god:'🟡 बृहस्पति', outfits:['Yellow kurta / shirt','Saffron combination','Gold accessories'], avoid:'काला / नेवी' },
-  { day:'शुक्रवार', en:'Friday',    color:'#e91e63', name:'सफेद / गुलाबी / हल्का नीला', god:'🌸 शुक्र', outfits:['White or pink outfit','Light blue combination','Diamond / pearl accessories'], avoid:'काला / गाढ़ा' },
-  { day:'शनिवार',   en:'Saturday',  color:'#263238', name:'काला / नेवी नीला / बैंगनी', god:'🪐 शनि', outfits:['Black / dark blue kurta','Navy combination','Iron / dark accessories'], avoid:'नारंगी / लाल' },
-]
-
-// ── Kirti-specific data
-const KIRTI_MEALS = [
-  { id:0, day:'रविवार',   breakfast:'फल + 1 कप दूध + शहद (Sattvic)',               lunch:'2 रोटी + मूंग दाल + लौकी + सलाद',   dinner:'खिचड़ी + दही',            tip:'☀️ Sattvic Sunday — Light, Energizing' },
-  { id:1, day:'सोमवार',   breakfast:'पोहा + 1 केला + हर्बल टी',                     lunch:'2 रोटी + अरहर दाल + तोरई + सलाद',  dinner:'दलिया + छाछ',             tip:'🌙 चंद्र दिवस — White Sattvic foods' },
-  { id:2, day:'मंगलवार',  breakfast:'उपमा + 1 संतरा',                                 lunch:'2 रोटी + मसूर दाल + गाजर',         dinner:'सूप + टोस्ट (हल्का)',      tip:'🔴 मंगल ऊर्जा — Court में strength!' },
-  { id:3, day:'बुधवार',   breakfast:'Green Moong Sprouts + Fruit Salad + Tea',      lunch:'2 रोटी + पालक सब्जी + दाल',        dinner:'मूंग दाल + चावल',          tip:'💚 बुध दिवस — Green vegetables, AOL prep' },
-  { id:4, day:'गुरुवार',  breakfast:'बेसन चीला 1 + दही + 1 केला',                  lunch:'2 रोटी + चना दाल + आलू (light)',    dinner:'दाल सूप + रोटी',           tip:'🟡 गुरु दिवस — Yellow foods, Wisdom day' },
-  { id:5, day:'शुक्रवार', breakfast:'दलिया + फल + हर्बल टी',                         lunch:'2 रोटी + परवल / लौकी + दाल',       dinner:'रागी खिचड़ी + दही',        tip:'🌸 शुक्र दिवस — Light sweet allowed, JCI day' },
-  { id:6, day:'शनिवार',   breakfast:'उपमा + काला तिल + चाय',                         lunch:'2 रोटी + काला चना + मेथी',         dinner:'दलिया + सूप (हल्का)',      tip:'🪐 शनि दिवस — Urad dal, sesame, iron-rich (Shani Dasha)' },
-]
-
-const KIRTI_DAY_TIPS = [
-  'Mesh Lagna = Red adds Confidence in Court. Sunday = Family + Garden day, bright colors!',
-  'सोमवार = White/Cream Saree या Suit in Court = Professional + Calm Impression।',
-  'मंगलवार = Red energy! Court में Red dupatta या accessories = Authority + Win cases!',
-  'बुधवार = Budh = Green. Green Saree / Suit = Advocate की Intelligence दिखती है।',
-  'गुरुवार = Yellow / Saffron Saree = Guru का आशीर्वाद + AOL Teacher aura!',
-  'शुक्रवार = Shukra = Pink/White. JCI / AOL meetings के लिए perfect presentation day!',
-  'शनिवार = Shani Dasha में Black/Navy respect करता है। Dark Blue Saree = Power in Court!',
-]
-
-const KIRTI_TASKS = [
-  // 🌅 ब्रह्म मुहूर्त — Spiritual (4:30 - 6:00 AM)
-  { id:1,  section:'🌅 ब्रह्म मुहूर्त — Spiritual', time:'4:30 AM', task:'उठें — पुष्य नक्षत्र की शक्ति इस समय सबसे अधिक है। तांबे से 1 गिलास पानी।', tags:['🕉️','🏥'], pinned:true,  skippable:false, highImpact:false },
-  { id:3,  section:'🌅 ब्रह्म मुहूर्त — Spiritual', time:'4:45 AM', task:'Sudarshan Kriya — Art of Living (NEVER MISS — यह आपका सबसे बड़ा रक्षा कवच है)', tags:['🕉️','🏥'], pinned:true,  skippable:false, highImpact:true },
-  { id:5,  section:'🌅 ब्रह्म मुहूर्त — Spiritual', time:'5:30 AM', task:"Mantra Jap — 'ॐ गुरवे नमः' 21 बार + Meditation 10 मिनट पूर्ण मौन", tags:['🕉️','🧠'], pinned:false, skippable:true, highImpact:false },
-  { id:7,  section:'🌅 ब्रह्म मुहूर्त — Spiritual', time:'5:45 AM', task:'Satsang Reading — Gurudev का 1 Message + दीपक जलाएं', tags:['🕉️'], pinned:false, skippable:true, highImpact:false },
-  // 🌿 बगीचा — Healing Time (6:00 - 6:30 AM)
-  { id:8,  section:'🌿 बगीचा — Healing Time', time:'6:00 AM', task:'बगीचे में जाएं — पौधों को पानी दें (NON-NEGOTIABLE — आपकी सबसे बड़ी Therapy)', tags:['🌿','🏥'], pinned:true,  skippable:false, highImpact:true },
-  { id:9,  section:'🌿 बगीचा — Healing Time', time:'6:15 AM', task:'तुलसी पूजा + 5 पत्ते खाएं + ब्राह्मी, गिलोय care + ज़मीन पर नंगे पाँव 5 min', tags:['🌿','🕉️','🏥'], pinned:false, skippable:false, highImpact:false },
-  // 🍽️ सुबह — नाश्ता और तैयारी (6:30 - 10:30 AM)
-  { id:12, section:'🍽️ सुबह — नाश्ता और तैयारी', time:'6:30 AM', task:'नाश्ता तैयार — सात्विक, परिवार के लिए (दलिया / पोहा / उपमा + फल)', tags:['🏥','❤️'], pinned:false, skippable:false, highImpact:false },
-  { id:13, section:'🍽️ सुबह — नाश्ता और तैयारी', time:'6:45 AM', task:'नाश्ता + BP Check + 1 गिलास पानी — शांति से, Protein + Fruit भी', tags:['🏥'], pinned:false, skippable:false, highImpact:false },
-  { id:14, section:'🍽️ सुबह — नाश्ता और तैयारी', time:'7:00 AM', task:'माही का Lunch Box Pack + घर की ज़रूरी चीज़ Check (Gas/सब्ज़ी/दूध)', tags:['❤️','🏥'], pinned:false, skippable:true, highImpact:false },
-  { id:16, section:'🍽️ सुबह — नाश्ता और तैयारी', time:'7:15 AM', task:'Case Files Review — आज के Important Cases + Arguments (घर से quiet time)', tags:['⚖️','🧠'], pinned:false, skippable:true, highImpact:true },
-  { id:17, section:'🍽️ सुबह — नाश्ता और तैयारी', time:'7:30 AM', task:'Client WhatsApp / Email Batch — 15 min (घर से, Court जाने से पहले)', tags:['⚖️','💰'], pinned:false, skippable:true, highImpact:false },
-  { id:29, section:'🍽️ सुबह — नाश्ता और तैयारी', time:'7:45 AM', task:'AOL Teaching Material Review — Bangalore Certification prep (घर में shanti)', tags:['🌍','🕉️'], pinned:false, skippable:true, highImpact:false },
-  { id:30, section:'🍽️ सुबह — नाश्ता और तैयारी', time:'8:00 AM', task:'JCI + Monthly Expense Review — घर का बजट, Savings check (घर से)', tags:['🌍','💰'], pinned:false, skippable:true, highImpact:false },
-  { id:18, section:'🍽️ सुबह — नाश्ता और तैयारी', time:'8:15 AM', task:'तैयार हों — Professional, आत्मविश्वास के साथ, "मैं निमित्त हूं"', tags:['🌸'], pinned:false, skippable:true, highImpact:false },
-  { id:19, section:'🍽️ सुबह — नाश्ता और तैयारी', time:'9:00 AM', task:'Court के लिए निकलें — सुरक्षित यात्रा, 3 Deep Breaths in car', tags:['⚖️','🧠'], pinned:false, skippable:false, highImpact:false },
-  { id:35, section:'🍽️ सुबह — नाश्ता और तैयारी', time:'9:30 AM', task:'Court Chamber — पहुंचें, Files Set करें, पानी पीएं, Calm रहें', tags:['⚖️'], pinned:false, skippable:true, highImpact:false },
-  { id:36, section:'🍽️ सुबह — नाश्ता और तैयारी', time:'10:00 AM', task:'Pre-Court Prep — Final Arguments, Witness Notes, Client briefing', tags:['⚖️','🧠'], pinned:false, skippable:true, highImpact:false },
-  // ⚖️ Court — Advocate Work (11:00 AM - 5:00 PM)
-  { id:20, section:'⚖️ Court — Advocate Work', time:'11:00 AM', task:'Court Session शुरू — "मैं निमित्त हूं" याद रखें, पूरे ध्यान से', tags:['⚖️'], pinned:true,  skippable:false, highImpact:true },
-  { id:21, section:'⚖️ Court — Advocate Work', time:'11:15 AM', task:'Cases — Arguments, Drafting, Submissions (Focus Block)', tags:['⚖️','🧠'], pinned:false, skippable:true, highImpact:false },
-  { id:22, section:'⚖️ Court — Advocate Work', time:'11:45 AM', task:'Client Fee Discussion / Collection — Politely, 1 client per day', tags:['💰','⚖️'], pinned:false, skippable:true, highImpact:false },
-  { id:23, section:'⚖️ Court — Advocate Work', time:'12:00 PM', task:'Short Break — पानी + 5 मिनट बाहर (Eyes + Energy rechargे)', tags:['🏥'], pinned:false, skippable:true, highImpact:false },
-  { id:24, section:'⚖️ Court — Advocate Work', time:'12:15 PM', task:'नए Case Inquiry + Client Outstanding Fees Reminder (1 message)', tags:['⚖️','💰'], pinned:false, skippable:true, highImpact:false },
-  { id:25, section:'⚖️ Court — Advocate Work', time:'2:00 PM',  task:'LUNCH — शांति से, Phone बंद, Gratitude (घर का Tiffin / Court cafeteria)', tags:['🏥','🕉️'], pinned:true,  skippable:false, highImpact:false },
-  { id:26, section:'⚖️ Court — Advocate Work', time:'2:15 PM',  task:'Micro Rest — 10 मिनट आंखें बंद + 1 गिलास पानी (Afternoon Energy)', tags:['🏥'], pinned:false, skippable:true, highImpact:false },
-  { id:27, section:'⚖️ Court — Advocate Work', time:'2:30 PM',  task:'Afternoon Cases — Research / Drafting / Submissions', tags:['⚖️','🧠'], pinned:false, skippable:true, highImpact:false },
-  { id:31, section:'⚖️ Court — Advocate Work', time:'3:00 PM',  task:'Free Legal Aid — 1 जरूरतमंद को Help करें (Social Service = Dharma)', tags:['⚖️','🌍'], pinned:false, skippable:true, highImpact:false },
-  { id:32, section:'⚖️ Court — Advocate Work', time:'3:15 PM',  task:'Savings / Investment Check — FD / RD / Monthly Expense (Court में quiet moment)', tags:['💰'], pinned:false, skippable:true, highImpact:false },
-  { id:33, section:'⚖️ Court — Advocate Work', time:'3:30 PM',  task:'AOL Workshop Plan — Gondia / Raipur session outline (Court break में)', tags:['🌍','🕉️'], pinned:false, skippable:true, highImpact:false },
-  { id:34, section:'⚖️ Court — Advocate Work', time:'4:00 PM',  task:'Final Cases of the Day + Tomorrow ki Preparation start', tags:['⚖️'], pinned:false, skippable:true, highImpact:false },
-  // 🚗 Court से घर — Transition (5:00 - 5:30 PM)
-  { id:37, section:'🚗 Court से घर — Transition', time:'5:00 PM', task:'Car में — 5 मिनट Breathing, Court वहीं छोड़ें, माँ बनें', tags:['🏥','🧠'], pinned:true,  skippable:false, highImpact:false },
-  { id:38, section:'🚗 Court से घर — Transition', time:'5:15 PM', task:"'ॐ शं शनैश्चराय नमः' — 7 बार मन में (Shani Dasha protection) + सब्ज़ी लें", tags:['🕉️','❤️'], pinned:false, skippable:true, highImpact:false },
-  // 🏠 शाम — घर और परिवार (5:30 - 7:30 PM)
-  { id:39, section:'🏠 शाम — घर और परिवार', time:'5:30 PM', task:'बगीचे में 20 मिनट — Court stress release, पौधों से बात (Therapy + Grounding)', tags:['🌿','🏥'], pinned:true,  skippable:false, highImpact:true },
-  { id:40, section:'🏠 शाम — घर और परिवार', time:'5:45 PM', task:'चाय — शांति से 10 मिनट, Screen नहीं', tags:['🌸'], pinned:false, skippable:true, highImpact:false },
-  { id:41, section:'🏠 शाम — घर और परिवार', time:'6:00 PM', task:'1 Household Task Complete + माही के साथ 15 मिनट (NIFT / दिन की बात)', tags:['❤️'], pinned:false, skippable:true, highImpact:false },
-  { id:42, section:'🏠 शाम — घर और परिवार', time:'6:15 PM', task:'Sanjay के साथ बगीचे में — 15 मिनट Sacred Couple Time (NON-NEGOTIABLE)', tags:['❤️'], pinned:true,  skippable:false, highImpact:true },
-  { id:43, section:'🏠 शाम — घर और परिवार', time:'6:30 PM', task:'Dinner की तैयारी — Simple, Sattvic, Nutritious (माही को involve करें)', tags:['🏥','❤️'], pinned:false, skippable:false, highImpact:false },
-  // 🍛 रात — Dinner और परिवार (7:30 - 8:45 PM)
-  { id:45, section:'🍛 रात — Dinner और परिवार', time:'7:30 PM', task:'Dinner तैयार — Table लगाएं, सबके साथ बैठें, Phone नहीं', tags:['❤️','🏥'], pinned:false, skippable:false, highImpact:false },
-  { id:46, section:'🍛 रात — Dinner और परिवार', time:'7:45 PM', task:'Family Dinner — तीनों साथ, 1 Gratitude बात हर कोई बोले', tags:['❤️','🏥'], pinned:true,  skippable:false, highImpact:true },
-  { id:48, section:'🍛 रात — Dinner और परिवार', time:'8:15 PM', task:'Kitchen Clean — माही के साथ (Teamwork + Bond)', tags:['❤️'], pinned:false, skippable:true, highImpact:false },
-  { id:49, section:'🍛 रात — Dinner और परिवार', time:'8:30 PM', task:'Sanjay के साथ Quality Time — Advocate mode पूरी तरह बंद (❤️ Priority)', tags:['❤️'], pinned:true,  skippable:false, highImpact:true },
-  // 🌙 रात — Wind Down (9:00 - 9:50 PM)
-  { id:50, section:'🌙 रात — Wind Down', time:'9:00 PM', task:'Journal — आज क्या सीखा, किसे help किया, आभार (Shani Dasha = Karma diary)', tags:['🕉️','🧠'], pinned:false, skippable:true, highImpact:false },
-  { id:51, section:'🌙 रात — Wind Down', time:'9:15 PM', task:"'ॐ' 21 बार + कल का Court Plan + AOL Prep", tags:['🕉️','🧠'], pinned:false, skippable:true, highImpact:false },
-  { id:53, section:'🌙 रात — Wind Down', time:'9:30 PM', task:'Phone Silent + Screen Time बंद', tags:['🏥'], pinned:false, skippable:true, highImpact:false },
-  { id:54, section:'🌙 रात — Wind Down', time:'9:45 PM', task:'सोएं — अच्छी नींद = कल की अच्छी Sudarshan Kriya + Court Energy', tags:['🏥'], pinned:true,  skippable:false, highImpact:false },
-]
-
 const SECTION_COLORS = {
   '🌅 ब्रह्म मुहूर्त — Spiritual':  { bg:'#fff5e6', accent:'#7b0000' },
   '🌿 बगीचा — Healing Time':         { bg:'#e8f5e9', accent:'#1b5e20' },
@@ -172,25 +54,38 @@ const SECTION_COLORS = {
   '🌙 रात — Wind Down':              { bg:'#ede7f6', accent:'#4a148c' },
 }
 
-const STORAGE_KEY = 'kirti_routine_v1'
+const DONE_KEY     = 'kirti_done_v3'
+const SETTINGS_KEY = 'kirti_settings_v3'
 const DEF_SETTINGS = { dayStart:'4:30 AM', dayEnd:'9:50 PM', actualStart:'' }
 
-function loadState() {
-  try { const s = localStorage.getItem(STORAGE_KEY); if (s) return JSON.parse(s) } catch {}
-  return null
-}
-function saveState(s) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)) } catch {}
+function parseCalText(text) {
+  const MONTHS = {january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12}
+  return text.trim().split('\n').filter(l=>l.trim()).map((line)=>{
+    const parts = line.trim().split(/\s+/)
+    const day = parseInt(parts[0])
+    const month = MONTHS[parts[1]?.toLowerCase()]
+    if(!day||!month) return null
+    const label = parts.slice(2).join(' ').trim()
+    if(!label) return null
+    return { date:`${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`, label }
+  }).filter(Boolean)
 }
 
 export default function KirtiRoutine() {
-  const saved = loadState()
-  const [tasks, setTasks] = useState(() =>
-    (saved?.tasks || KIRTI_TASKS).map(t => ({ ...t, skippable: t.skippable !== undefined ? t.skippable : !t.pinned }))
-  )
-  const [done, setDone]         = useState(saved?.done     || {})
-  const [settings, setSettings] = useState(saved?.settings || DEF_SETTINGS)
-  const [view, setView]         = useState('today')
+  const [tasks, setTasks]           = useState([])
+  const [done, setDone]             = useState(() => { try { return JSON.parse(localStorage.getItem(DONE_KEY)) || {} } catch { return {} } })
+  const [settings, setSettings]     = useState(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || DEF_SETTINGS } catch { return DEF_SETTINGS } })
+  const [meals, setMeals]           = useState([])
+  const [mantras, setMantras]       = useState([])
+  const [weeklyPlan, setWeeklyPlan] = useState([])
+  const [dayColors, setDayColors]   = useState([])
+  const [outfitTips, setOutfitTips] = useState([])
+  const [calEvents, setCalEvents]   = useState([])
+  const [aolSteps, setAolSteps]     = useState([])
+  const [gardenData, setGardenData] = useState([])
+  const [herbData, setHerbData]     = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [view, setView]             = useState('today')
   const [editingId, setEditingId]   = useState(null)
   const [editDraft, setEditDraft]   = useState({})
   const [addingSection, setAddingSection] = useState(null)
@@ -205,12 +100,37 @@ export default function KirtiRoutine() {
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected]     = useState(new Set())
   const [mergeForm, setMergeForm]   = useState(null)
-  const [calEvents, setCalEvents] = useState(loadCalEvents)
-  const [calInput,  setCalInput]  = useState('')
+  const [calInput, setCalInput]     = useState('')
   const editRef = useRef(null)
 
-  useEffect(() => { saveState({ tasks, done, settings }) }, [tasks, done, settings])
-  useEffect(() => { saveCalEvents(calEvents) }, [calEvents])
+  useEffect(() => {
+    Promise.all([
+      api.getTasks('kirti'),
+      api.getMeals('kirti'),
+      api.getMantras('kirti', 'mantra'),
+      api.getWeekly('kirti'),
+      api.getDayColors(),
+      api.getOutfitTips('kirti'),
+      api.getCalendar(),
+      api.getExtras('kirti', 'aol'),
+      api.getExtras('kirti', 'garden'),
+      api.getExtras('kirti', 'herb'),
+    ]).then(([t, m, mn, w, dc, ot, cal, aol, grd, hrb]) => {
+      setTasks(Array.isArray(t) ? t.map(x => ({...x, skippable: x.skippable !== undefined ? x.skippable : !x.pinned})) : [])
+      setMeals(Array.isArray(m) ? m : [])
+      setMantras(Array.isArray(mn) ? mn : [])
+      setWeeklyPlan(Array.isArray(w) ? w : [])
+      setDayColors(Array.isArray(dc) ? dc : [])
+      setOutfitTips(Array.isArray(ot) ? ot : [])
+      setCalEvents(Array.isArray(cal) ? cal : [])
+      setAolSteps(Array.isArray(aol) ? aol : [])
+      setGardenData(Array.isArray(grd) ? grd : [])
+      setHerbData(Array.isArray(hrb) ? hrb : [])
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => { try { localStorage.setItem(DONE_KEY, JSON.stringify(done)) } catch {} }, [done])
+  useEffect(() => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)) } catch {} }, [settings])
 
   const sections   = [...new Set(tasks.map(t => t.section))]
   const todayDone  = Object.values(done).filter(Boolean).length
@@ -237,25 +157,31 @@ export default function KirtiRoutine() {
   }
 
   const startEdit = t => {
-    setEditingId(t.id)
+    setEditingId(t._id)
     setEditDraft({ time:t.time, task:t.task, tags:[...t.tags], skippable: t.skippable !== false })
     setTimeout(() => editRef.current?.focus(), 50)
   }
-  const saveEdit = () => { setTasks(tasks.map(t => t.id === editingId ? { ...t, ...editDraft } : t)); setEditingId(null) }
-  const deleteTask = id => {
-    setTasks(tasks.filter(t => t.id !== id))
+  const saveEdit = async () => {
+    const updated = await api.updateTask('kirti', editingId, editDraft)
+    setTasks(prev => prev.map(t => t._id === editingId ? { ...t, ...(updated || editDraft) } : t))
+    setEditingId(null)
+  }
+  const deleteTask = async id => {
+    await api.deleteTask('kirti', id)
+    setTasks(prev => prev.filter(t => t._id !== id))
     const nd = { ...done }; delete nd[id]; setDone(nd)
   }
-  const addTask = section => {
+  const addTask = async section => {
     if (!newTask.task.trim()) return
-    setTasks([...tasks, { id:Date.now(), section, ...newTask, pinned:false }])
+    const created = await api.addTask('kirti', { ...newTask, section, pinned:false })
+    setTasks(prev => [...prev, { ...created, skippable: created.skippable !== undefined ? created.skippable : true }])
     setNewTask({ time:'', task:'', tags:[], skippable:true })
     setAddingSection(null)
   }
 
   const onDragStart = id => setDragId(id)
   const onDragOver  = (e, id) => { e.preventDefault(); setDragOverId(id) }
-  const onDrop = targetId => {
+  const onDrop = async targetId => {
     if (dragId === targetId) return
     const arr  = [...tasks]
     const durs = arr.map((t, i) => {
@@ -263,13 +189,15 @@ export default function KirtiRoutine() {
       const d = parseTime(arr[i+1].time) - parseTime(t.time)
       return (d > 0 && d <= 180) ? d : 15
     })
-    const fi = arr.findIndex(t => t.id === dragId)
-    const ti = arr.findIndex(t => t.id === targetId)
+    const fi = arr.findIndex(t => t._id === dragId)
+    const ti = arr.findIndex(t => t._id === targetId)
     const [mt] = arr.splice(fi, 1); const [md] = durs.splice(fi, 1)
     arr.splice(ti, 0, mt); durs.splice(ti, 0, md)
     let cursor = parseTime(settings.dayStart)
-    setTasks(arr.map((t, i) => { const time = fmtTime(cursor); cursor += durs[i]; return { ...t, time } }))
+    const newArr = arr.map((t, i) => { const time = fmtTime(cursor); cursor += durs[i]; return { ...t, time, order:i } })
+    setTasks(newArr)
     setDragId(null); setDragOverId(null)
+    api.batchUpdateTasks('kirti', newArr.map(t => ({ _id: t._id, time: t.time, order: t.order })))
   }
 
   const applySchedule = (newStart, newEnd) => {
@@ -287,31 +215,47 @@ export default function KirtiRoutine() {
 
   const autoSkip = () => {
     const nd = { ...done }
-    tasks.forEach(t => { if (parseTime(t.time) < actualMins && t.skippable) nd[t.id] = true })
+    tasks.forEach(t => { if (parseTime(t.time) < actualMins && t.skippable) nd[t._id] = true })
     setDone(nd)
   }
 
   const openMerge = () => {
-    const sel = tasks.filter(t => selected.has(t.id)).sort((a,b) => parseTime(a.time)-parseTime(b.time))
+    const sel = tasks.filter(t => selected.has(t._id)).sort((a,b) => parseTime(a.time)-parseTime(b.time))
     if (sel.length < 2) return
     setMergeForm({ task:sel[0].task, time:sel[0].time, tags:[...new Set(sel.flatMap(t=>t.tags))], skippable:sel.some(t=>t.skippable) })
   }
-  const doMerge = () => {
+  const doMerge = async () => {
     if (!mergeForm?.task?.trim()) return
-    const insertIdx = tasks.findIndex(t => selected.has(t.id))
+    const insertIdx = tasks.findIndex(t => selected.has(t._id))
     const section   = tasks[insertIdx]?.section || sections[0]
-    const rest      = tasks.filter(t => !selected.has(t.id))
-    rest.splice(insertIdx, 0, { id:Date.now(), section, ...mergeForm, pinned:false })
+    await Promise.all([...selected].map(id => api.deleteTask('kirti', id)))
+    const created = await api.addTask('kirti', { ...mergeForm, section, pinned:false })
+    const rest = tasks.filter(t => !selected.has(t._id))
+    rest.splice(insertIdx, 0, { ...created, skippable: created.skippable !== undefined ? created.skippable : true })
     setTasks(rest)
     const nd = { ...done }; selected.forEach(id => delete nd[id]); setDone(nd)
     setSelected(new Set()); setSelectMode(false); setMergeForm(null)
   }
 
   const resetDay = () => { setDone({}); setConfirmReset(false) }
-  const resetAll = () => {
-    setTasks(KIRTI_TASKS.map(t => ({ ...t, skippable: t.skippable !== undefined ? t.skippable : !t.pinned })))
+  const resetAll = async () => {
+    const fresh = await api.resetTasks('kirti')
+    setTasks(Array.isArray(fresh) ? fresh.map(t => ({...t, skippable: t.skippable !== undefined ? t.skippable : !t.pinned})) : [])
     setDone({}); setSettings(DEF_SETTINGS); setConfirmReset(false)
   }
+
+  const addCalEvent = async () => {
+    const parsed = parseCalText(calInput)
+    if (!parsed.length) return
+    const created = await Promise.all(parsed.map(ev => api.addCalEvent(ev)))
+    setCalEvents(prev => [...prev, ...created])
+    setCalInput('')
+  }
+  const deleteCalEvent = async id => {
+    await api.deleteCalEvent(id)
+    setCalEvents(prev => prev.filter(e => e._id !== id))
+  }
+
   const sc = sec => SECTION_COLORS[sec] || { bg:'#f9f9f9', accent:TEAL }
 
   const filterAreas = ['ALL', '⚡ Impact', ...Object.keys(AREA_META)]
@@ -320,6 +264,8 @@ export default function KirtiRoutine() {
     const sOk = !searchQ || t.task.toLowerCase().includes(searchQ.toLowerCase()) || t.time.includes(searchQ)
     return aOk && sOk
   })
+
+  if (loading) return <div style={{padding:40,textAlign:'center',color:TEAL,fontSize:16}}>🌿 लोड हो रहा है...</div>
 
   return (
     <div style={S.root}>
@@ -438,7 +384,7 @@ export default function KirtiRoutine() {
           const secTasks=filtered.filter(t=>t.section===sec)
           if(!secTasks.length) return null
           const c=sc(sec)
-          const secDone=secTasks.filter(t=>done[t.id]).length
+          const secDone=secTasks.filter(t=>done[t._id]).length
           return (
             <div key={sec} style={{...S.section,background:c.bg}}>
               <div style={{...S.secHeader,borderLeftColor:c.accent}}>
@@ -446,20 +392,20 @@ export default function KirtiRoutine() {
                 <span style={{...S.secBadge,background:c.accent}}>{secDone}/{secTasks.length}</span>
               </div>
               {secTasks.map(t=>{
-                const status=getStatus(t), isSel=selected.has(t.id)
+                const status=getStatus(t), isSel=selected.has(t._id)
                 return (
-                  <div key={t.id} draggable={!selectMode}
-                    onDragStart={()=>onDragStart(t.id)} onDragOver={e=>onDragOver(e,t.id)} onDrop={()=>onDrop(t.id)}
+                  <div key={t._id} draggable={!selectMode}
+                    onDragStart={()=>onDragStart(t._id)} onDragOver={e=>onDragOver(e,t._id)} onDrop={()=>onDrop(t._id)}
                     style={{
                       ...S.taskCard,
-                      ...(done[t.id]?S.taskDone:{}),
+                      ...(done[t._id]?S.taskDone:{}),
                       ...(status==='skipped'?S.taskSkipped:{}),
                       ...(status==='missed'?S.taskMissed:{}),
-                      ...(dragOverId===t.id?S.taskDragOver:{}),
+                      ...(dragOverId===t._id?S.taskDragOver:{}),
                       ...(isSel?S.taskSelected:{}),
                       borderLeft: t.highImpact ? '4px solid #ffd700' : `4px solid ${status==='missed'?'#b71c1c':c.accent}`,
                     }}>
-                    {editingId===t.id?(
+                    {editingId===t._id?(
                       <div style={S.editBox}>
                         <input ref={editRef} value={editDraft.time} onChange={e=>setEditDraft({...editDraft,time:e.target.value})} style={S.editInput} placeholder='Time'/>
                         <textarea value={editDraft.task} onChange={e=>setEditDraft({...editDraft,task:e.target.value})} style={S.editTextarea} rows={2}/>
@@ -479,9 +425,9 @@ export default function KirtiRoutine() {
                         </div>
                       </div>
                     ):(
-                      <div style={S.taskRow} onClick={()=>toggle(t.id)}>
-                        <div style={{...S.checkbox,...((selectMode?isSel:done[t.id])?S.cbDone:{}),borderColor:c.accent}}>
-                          {(selectMode?isSel:done[t.id])&&<span style={S.checkMark}>✓</span>}
+                      <div style={S.taskRow} onClick={()=>toggle(t._id)}>
+                        <div style={{...S.checkbox,...((selectMode?isSel:done[t._id])?S.cbDone:{}),borderColor:c.accent}}>
+                          {(selectMode?isSel:done[t._id])&&<span style={S.checkMark}>✓</span>}
                         </div>
                         <div style={S.taskContent}>
                           <div style={{...S.taskTime,color:c.accent}}>
@@ -491,7 +437,7 @@ export default function KirtiRoutine() {
                             {status==='missed'&&<span style={S.missedBadge}>MISSED</span>}
                             {status==='skipped'&&<span style={S.skippedBadge}>⏭️ SKIP</span>}
                           </div>
-                          <div style={{...S.taskText,...((done[t.id]||status==='skipped')?S.taskStrike:{})}}>{t.task}</div>
+                          <div style={{...S.taskText,...((done[t._id]||status==='skipped')?S.taskStrike:{})}}>{t.task}</div>
                           <div style={S.tagRow}>
                             {t.tags.map(tag=>(
                               <span key={tag} style={{...S.tag,background:AREA_META[tag]?.bg||'#eee',color:AREA_META[tag]?.color||'#666'}}>{tag} {AREA_META[tag]?.label}</span>
@@ -501,7 +447,7 @@ export default function KirtiRoutine() {
                         {!selectMode&&(
                           <div style={S.taskActions} onClick={e=>e.stopPropagation()}>
                             <button onClick={()=>startEdit(t)} style={S.iconBtn}>✏️</button>
-                            <button onClick={()=>deleteTask(t.id)} style={S.iconBtn}>🗑️</button>
+                            <button onClick={()=>deleteTask(t._id)} style={S.iconBtn}>🗑️</button>
                             <span style={S.dragHandle}>⠿</span>
                           </div>
                         )}
@@ -554,109 +500,77 @@ export default function KirtiRoutine() {
         </div>
       </>}
 
-      {view==='weekly' && <KirtiWeekly />}
-      {view==='aol'    && <KirtiAOL />}
-      {view==='garden' && <KirtiGarden />}
+      {view==='weekly' && <KirtiWeekly weeklyPlan={weeklyPlan} />}
+      {view==='aol'    && <KirtiAOL mantras={mantras} aolSteps={aolSteps} />}
+      {view==='garden' && <KirtiGarden gardenData={gardenData} herbData={herbData} />}
 
       {view==='outfit' && (() => {
-        const dc = DAY_COLORS[new Date().getDay()]
-        const tip = KIRTI_DAY_TIPS[new Date().getDay()]
+        const dc = dayColors.find(c => c.dayIndex === new Date().getDay()) || {}
+        const tip = outfitTips.find(t => t.dayIndex === new Date().getDay())?.tip || ''
         return (
           <div style={{padding:'16px 14px'}}>
             <div style={{fontSize:20,fontWeight:800,color:TEAL,marginBottom:4}}>👗 आज का Outfit — किर्ती</div>
             <div style={{fontSize:12,color:'#888',marginBottom:16}}>Vedic Astrology based daily color guide</div>
-            <div style={{background:`linear-gradient(135deg,${dc.color},${dc.color}cc)`,borderRadius:16,padding:20,color:'#fff',marginBottom:16,textAlign:'center'}}>
-              <div style={{fontSize:28,marginBottom:4}}>{dc.god}</div>
-              <div style={{fontSize:16,fontWeight:800}}>{dc.day} — {dc.en}</div>
-              <div style={{fontSize:22,fontWeight:900,marginTop:8,marginBottom:4}}>{dc.name}</div>
-              <div style={{fontSize:13,opacity:0.9}}>आज का शुभ रंग</div>
-            </div>
-            <div style={{background:'#fff',borderRadius:16,padding:16,marginBottom:12,border:'2px solid #eee'}}>
-              <div style={{fontSize:14,fontWeight:700,color:'#333',marginBottom:10}}>👔 Outfit Suggestions:</div>
-              {dc.outfits.map((o,i)=>(
-                <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',borderBottom:i<dc.outfits.length-1?'1px solid #f0f0f0':'none'}}>
-                  <div style={{width:12,height:12,borderRadius:'50%',background:dc.color,flexShrink:0}}/>
-                  <span style={{fontSize:14}}>{o}</span>
+            {dc.color && (
+              <>
+                <div style={{background:`linear-gradient(135deg,${dc.color},${dc.color}cc)`,borderRadius:16,padding:20,color:'#fff',marginBottom:16,textAlign:'center'}}>
+                  <div style={{fontSize:28,marginBottom:4}}>{dc.god}</div>
+                  <div style={{fontSize:16,fontWeight:800}}>{dc.day} — {dc.en}</div>
+                  <div style={{fontSize:22,fontWeight:900,marginTop:8,marginBottom:4}}>{dc.name}</div>
+                  <div style={{fontSize:13,opacity:0.9}}>आज का शुभ रंग</div>
                 </div>
-              ))}
-            </div>
-            <div style={{background:'#f0f7f4',borderRadius:16,padding:16,marginBottom:12,border:`2px solid ${TEAL}`}}>
-              <div style={{fontSize:13,fontWeight:700,color:'#7b0000',marginBottom:6}}>🌟 Personal Tip — Shani Dasha + Mesh Lagna:</div>
-              <div style={{fontSize:13,color:'#333',lineHeight:1.6}}>{tip}</div>
-            </div>
-            <div style={{background:'#fff0f0',borderRadius:12,padding:12,border:'1px solid #ffcdd2'}}>
-              <div style={{fontSize:13,fontWeight:700,color:'#c62828',marginBottom:4}}>❌ आज Avoid करें:</div>
-              <div style={{fontSize:13,color:'#555'}}>{dc.avoid}</div>
-            </div>
+                <div style={{background:'#fff',borderRadius:16,padding:16,marginBottom:12,border:'2px solid #eee'}}>
+                  <div style={{fontSize:14,fontWeight:700,color:'#333',marginBottom:10}}>👔 Outfit Suggestions:</div>
+                  {(dc.outfits||[]).map((o,i)=>(
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',borderBottom:i<(dc.outfits||[]).length-1?'1px solid #f0f0f0':'none'}}>
+                      <div style={{width:12,height:12,borderRadius:'50%',background:dc.color,flexShrink:0}}/>
+                      <span style={{fontSize:14}}>{o}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            {tip && (
+              <div style={{background:'#f0f7f4',borderRadius:16,padding:16,marginBottom:12,border:`2px solid ${TEAL}`}}>
+                <div style={{fontSize:13,fontWeight:700,color:'#7b0000',marginBottom:6}}>🌟 Personal Tip — Shani Dasha + Mesh Lagna:</div>
+                <div style={{fontSize:13,color:'#333',lineHeight:1.6}}>{tip}</div>
+              </div>
+            )}
+            {dc.avoid && (
+              <div style={{background:'#fff0f0',borderRadius:12,padding:12,border:'1px solid #ffcdd2'}}>
+                <div style={{fontSize:13,fontWeight:700,color:'#c62828',marginBottom:4}}>❌ आज Avoid करें:</div>
+                <div style={{fontSize:13,color:'#555'}}>{dc.avoid}</div>
+              </div>
+            )}
           </div>
         )
       })()}
 
-      {view==='calendar' && (() => {
-        const today = new Date()
-        const MONTH_HI = ['','जनवरी','फरवरी','मार्च','अप्रैल','मई','जून','जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर']
-        const withDays = calEvents.map(e=>{
-          const [mm,dd]=e.date.split('-').map(Number)
-          const next=new Date(today.getFullYear(),mm-1,dd)
-          if(next<today&&!(next.getMonth()===today.getMonth()&&next.getDate()===today.getDate())) next.setFullYear(today.getFullYear()+1)
-          return{...e,daysAway:Math.round((next-today)/(864e5)),mm,dd}
-        }).sort((a,b)=>a.daysAway-b.daysAway)
-        const upcoming=withDays.filter(e=>e.daysAway<=60)
-        const byMonth={}
-        calEvents.forEach(e=>{const mm=parseInt(e.date.split('-')[0]);if(!byMonth[mm])byMonth[mm]=[];byMonth[mm].push(e)})
-        const parsed = parseCalText(calInput)
-        return (
-          <div style={{padding:'16px 14px'}}>
-            <div style={{fontSize:20,fontWeight:800,color:TEAL,marginBottom:16}}>📆 परिवार Calendar</div>
-            {upcoming.length>0&&<>
-              <div style={{fontSize:13,fontWeight:700,color:'#555',marginBottom:10}}>🔔 अगले 60 दिनों में ({upcoming.length})</div>
-              {upcoming.map(e=>(
-                <div key={e.id} style={{background:e.daysAway<=7?'#e8f5e9':'#f9f9f9',border:`2px solid ${e.daysAway<=7?TEAL:'#ddd'}`,borderRadius:12,padding:'12px 14px',marginBottom:8}}>
-                  <div style={{fontSize:15,fontWeight:700}}>{e.label}</div>
-                  <div style={{fontSize:12,color:'#888',marginTop:4}}>{MONTH_HI[e.mm]} {e.dd} • {e.daysAway===0?'🎉 आज!':`${e.daysAway} दिन बाद`}</div>
-                </div>
-              ))}
-              <div style={{height:8}}/>
-            </>}
-            <div style={{fontSize:13,fontWeight:700,color:'#555',marginBottom:10}}>📅 सभी Events ({calEvents.length})</div>
-            {Object.keys(byMonth).sort((a,b)=>+a-+b).map(mm=>(
-              <div key={mm} style={{marginBottom:12}}>
-                <div style={{fontSize:11,fontWeight:800,color:TEAL,marginBottom:6,letterSpacing:1}}>{MONTH_HI[+mm].toUpperCase()}</div>
-                {byMonth[mm].sort((a,b)=>a.date.localeCompare(b.date)).map(e=>(
-                  <div key={e.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 10px',background:'#fff',border:'1px solid #eee',borderRadius:8,marginBottom:4}}>
-                    <span style={{fontSize:14}}>{parseInt(e.date.split('-')[1])} — {e.label}</span>
-                    <button onClick={()=>setCalEvents(prev=>prev.filter(x=>x.id!==e.id))} style={{background:'none',border:'none',cursor:'pointer',fontSize:18,color:'#bbb',padding:'0 4px'}}>✕</button>
-                  </div>
-                ))}
-              </div>
-            ))}
-            <div style={{marginTop:16,padding:14,background:'#f0f7f4',borderRadius:12,border:`2px solid ${TEAL}`}}>
-              <div style={{fontSize:13,fontWeight:700,color:'#7b0000',marginBottom:4}}>➕ New Event जोड़ें</div>
-              <div style={{fontSize:11,color:'#888',marginBottom:8}}>Format: "12 January 🧁 Kirti" (एक line = एक event)</div>
-              <textarea value={calInput} onChange={e=>setCalInput(e.target.value)}
-                placeholder={'12 January 🧁Kirti\n31 January 💞 Bhumi-Mukesh\n03 February 💞 Kirti-Sanju'}
-                style={{width:'100%',padding:'10px',borderRadius:8,border:'1px solid #ddd',fontSize:12,fontFamily:'inherit',minHeight:80,boxSizing:'border-box',resize:'vertical'}}/>
-              <button onClick={()=>{if(parsed.length>0){setCalEvents(prev=>[...prev,...parsed]);setCalInput('')}}}
-                style={{marginTop:8,width:'100%',padding:'10px',background:parsed.length>0?TEAL:'#bbb',color:'#fff',border:'none',borderRadius:8,fontWeight:700,fontSize:14,cursor:parsed.length>0?'pointer':'not-allowed'}}>
-                ✓ Calendar में जोड़ें {parsed.length>0?`(${parsed.length} events)`:''}
-              </button>
-            </div>
-          </div>
-        )
-      })()}
+      {view==='calendar' && (
+        <CalendarView
+          calEvents={calEvents}
+          calInput={calInput}
+          setCalInput={setCalInput}
+          addCalEvent={addCalEvent}
+          deleteCalEvent={deleteCalEvent}
+          accentColor={TEAL}
+        />
+      )}
 
       {view==='meals' && (() => {
         const todayIdx = new Date().getDay()
-        const meal = KIRTI_MEALS[todayIdx]
+        const meal = meals.find(m => m.dayIndex === todayIdx) || {}
         return (
           <div style={{padding:'16px 14px'}}>
             <div style={{fontSize:20,fontWeight:800,color:TEAL,marginBottom:4}}>🍽️ Meals — किर्ती</div>
             <div style={{fontSize:12,color:'#888',marginBottom:16}}>Court 2:00 PM Lunch + AOL/Sattvic आधारित</div>
-            <div style={{background:`linear-gradient(135deg,${TEAL},${GREEN})`,borderRadius:16,padding:16,color:'#fff',marginBottom:16}}>
-              <div style={{fontSize:13,opacity:0.9}}>आज: {meal.day}</div>
-              <div style={{fontSize:15,fontWeight:800,marginTop:4}}>{meal.tip}</div>
-            </div>
-            {[['🌅 नाश्ता (Breakfast)',meal.breakfast,'6:45 AM'],['🍛 दोपहर का खाना (Lunch)',meal.lunch,'2:00 PM'],['🌙 रात का खाना (Dinner)',meal.dinner,'7:45 PM']].map(([title,content,time])=>(
+            {meal.tip && (
+              <div style={{background:`linear-gradient(135deg,${TEAL},${GREEN})`,borderRadius:16,padding:16,color:'#fff',marginBottom:16}}>
+                <div style={{fontSize:13,opacity:0.9}}>आज: {meal.day}</div>
+                <div style={{fontSize:15,fontWeight:800,marginTop:4}}>{meal.tip}</div>
+              </div>
+            )}
+            {meal.breakfast && [['🌅 नाश्ता (Breakfast)',meal.breakfast,'6:45 AM'],['🍛 दोपहर का खाना (Lunch)',meal.lunch,'2:00 PM'],['🌙 रात का खाना (Dinner)',meal.dinner,'7:45 PM']].map(([title,content,time])=>(
               <div key={title} style={{background:'#fff',borderRadius:12,padding:16,marginBottom:12,border:'1px solid #eee'}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
                   <div style={{fontSize:14,fontWeight:700}}>{title}</div>
@@ -671,9 +585,9 @@ export default function KirtiRoutine() {
             </div>
             <div style={{marginTop:16}}>
               <div style={{fontSize:13,fontWeight:700,color:'#555',marginBottom:8}}>📅 Weekly Meal Plan</div>
-              {KIRTI_MEALS.map((m,i)=>(
-                <div key={i} style={{background:i===todayIdx?'#f0f7f4':'#f9f9f9',border:`1px solid ${i===todayIdx?TEAL:'#eee'}`,borderRadius:10,padding:10,marginBottom:6}}>
-                  <div style={{fontSize:12,fontWeight:800,color:i===todayIdx?TEAL:'#333',marginBottom:4}}>{m.day} {i===todayIdx?'← आज':''}</div>
+              {meals.map((m,i)=>(
+                <div key={m.dayIndex??i} style={{background:m.dayIndex===todayIdx?'#f0f7f4':'#f9f9f9',border:`1px solid ${m.dayIndex===todayIdx?TEAL:'#eee'}`,borderRadius:10,padding:10,marginBottom:6}}>
+                  <div style={{fontSize:12,fontWeight:800,color:m.dayIndex===todayIdx?TEAL:'#333',marginBottom:4}}>{m.day} {m.dayIndex===todayIdx?'← आज':''}</div>
                   <div style={{fontSize:11,color:'#666'}}>{m.breakfast}</div>
                 </div>
               ))}
@@ -697,51 +611,26 @@ export default function KirtiRoutine() {
   )
 }
 
-function KirtiWeekly() {
-  const days = [
-    { day:'सोमवार 🌙', focus:'Shiv Temple + Court + JCI', color:'#1a237e', mantra:"'ॐ सोमाय नमः' 21 बार", tip:'Weekly AOL workshop plan करें' },
-    { day:'मंगलवार 🔴', focus:'Court + Extra Gardening', color:'#b71c1c', mantra:"'ॐ अं अंगारकाय नमः' 21 बार", tip:'Healing herbs की देखभाल' },
-    { day:'बुधवार 💚', focus:'Legal Aid + Community Work', color:'#00695c', mantra:"'ॐ बुं बुधाय नमः' 21 बार", tip:'1 गरीब को Free Legal help' },
-    { day:'गुरुवार 🌕', focus:'AOL Workshop + JCI Meeting', color:'#4a148c', mantra:"'ॐ गुरवे नमः' 21 बार", tip:'Workshop का पहला दिन — Thursday को' },
-    { day:'शुक्रवार 💕', focus:'Family + Satsang', color:'#880e4f', mantra:"'ॐ श्रीं लक्ष्म्यै नमः' 108 बार", tip:'Sanjay के साथ Quality Time' },
-    { day:'शनिवार 🪐', focus:'Garden + AOL Prep + Review', color:'#37474f', mantra:"'ॐ शं शनैश्चराय नमः' 108 बार", tip:'Bangalore preparation update' },
-    { day:'रविवार ☀️', focus:'Full Spiritual Day + Family', color:'#e65100', mantra:'Sudarshan Kriya — Extended', tip:'Sanjay + Mahi के साथ Temple' },
-  ]
+function KirtiWeekly({ weeklyPlan }) {
   return (
     <div style={{padding:'10px 10px 20px'}}>
-      {days.map(d=>(
-        <div key={d.day} style={{background:'#fff',borderRadius:14,padding:'14px 16px',marginBottom:10,borderTop:`4px solid ${d.color}`,boxShadow:'0 2px 8px rgba(0,0,0,0.07)'}}>
-          <div style={{fontSize:16,fontWeight:800,color:d.color,marginBottom:4}}>{d.day}</div>
+      {weeklyPlan.map((d,i)=>(
+        <div key={d.day||i} style={{background:'#fff',borderRadius:14,padding:'14px 16px',marginBottom:10,borderTop:`4px solid ${d.color||'#00695c'}`,boxShadow:'0 2px 8px rgba(0,0,0,0.07)'}}>
+          <div style={{fontSize:16,fontWeight:800,color:d.color||'#00695c',marginBottom:4}}>{d.day}</div>
           <div style={{fontSize:13,fontWeight:700,color:'#333',marginBottom:6}}>{d.focus}</div>
-          <div style={{fontSize:12,color:'#555',marginBottom:3}}>🕉️ {d.mantra}</div>
-          <div style={{fontSize:12,color:'#888'}}>💡 {d.tip}</div>
+          {d.mantra && <div style={{fontSize:12,color:'#555',marginBottom:3}}>🕉️ {d.mantra}</div>}
+          {d.tip && <div style={{fontSize:12,color:'#888'}}>💡 {d.tip}</div>}
         </div>
       ))}
     </div>
   )
 }
 
-function KirtiAOL() {
-  const mantras = [
-    { when:'रोज 4:45 AM', mantra:'Sudarshan Kriya — NEVER MISS', benefit:'आत्मा की शांति + Health', color:'#7b0000' },
-    { when:'रोज सुबह', mantra:"'ॐ नमः शिवाय' — 21 बार", benefit:'मन की शांति + Court में Calm', color:'#1a237e' },
-    { when:'रोज सुबह', mantra:"'ॐ गुरवे नमः' — 21 बार", benefit:'Gurudev का आशीर्वाद', color:'#00695c' },
-    { when:'सोमवार', mantra:"'ॐ सोमाय नमः' — 108 बार", benefit:'मन + Emotions balanced', color:'#880e4f' },
-    { when:'शनिवार', mantra:"'ॐ शं शनैश्चराय नमः' — 108 बार", benefit:'शनि महादशा + Discipline', color:'#37474f' },
-    { when:'शुक्रवार', mantra:"'ॐ श्रीं लक्ष्म्यै नमः' — 108 बार", benefit:'Family prosperity', color:'#880e4f' },
-  ]
-  const aol_steps = [
-    { step:'अभी करें', action:'Sudarshan Kriya — रोज 4:45 AM', done:true },
-    { step:'Bangalore', action:'Teacher Training — जल्दी जाएं — यह आपका Dharma है', done:false },
-    { step:'Local Workshop', action:'Gondia/Raipur में पहला Workshop — गुरुवार को', done:false },
-    { step:'JCI Integration', action:'JCI Network में AOL introduce करें', done:false },
-    { step:'Healing Garden', action:"'Healing Garden' Project — Meditation + Community", done:false },
-    { step:'Big Programs', action:'Gurudev के साथ बड़े Programs में योगदान', done:false },
-  ]
+function KirtiAOL({ mantras, aolSteps }) {
   return (
     <div style={{padding:'10px 10px 20px'}}>
       <div style={{fontSize:16,fontWeight:800,color:TEAL,textAlign:'center',padding:'8px 0 12px'}}>🕉️ AOL Teacher Journey</div>
-      {aol_steps.map((s,i)=>(
+      {aolSteps.map((s,i)=>(
         <div key={i} style={{background:'#fff',borderRadius:12,padding:'12px 14px',marginBottom:8,borderLeft:`4px solid ${s.done?TEAL:'#bbb'}`,boxShadow:'0 1px 5px rgba(0,0,0,0.06)',display:'flex',gap:12,alignItems:'center'}}>
           <div style={{fontSize:20}}>{s.done?'✅':'🎯'}</div>
           <div>
@@ -752,8 +641,8 @@ function KirtiAOL() {
       ))}
       <div style={{fontSize:16,fontWeight:800,color:TEAL,textAlign:'center',padding:'12px 0 8px'}}>🕉️ Daily Mantras</div>
       {mantras.map((m,i)=>(
-        <div key={i} style={{background:'#fff',borderRadius:12,padding:'12px 14px',marginBottom:8,borderLeft:`4px solid ${m.color}`,boxShadow:'0 1px 5px rgba(0,0,0,0.06)'}}>
-          <div style={{fontSize:11,fontWeight:800,color:m.color,marginBottom:3}}>{m.when}</div>
+        <div key={i} style={{background:'#fff',borderRadius:12,padding:'12px 14px',marginBottom:8,borderLeft:`4px solid ${m.color||TEAL}`,boxShadow:'0 1px 5px rgba(0,0,0,0.06)'}}>
+          <div style={{fontSize:11,fontWeight:800,color:m.color||TEAL,marginBottom:3}}>{m.when}</div>
           <div style={{fontSize:14,fontWeight:700,color:'#222',marginBottom:3}}>{m.mantra}</div>
           <div style={{fontSize:11,color:'#666'}}>✨ {m.benefit}</div>
         </div>
@@ -767,25 +656,11 @@ function KirtiAOL() {
   )
 }
 
-function KirtiGarden() {
-  const plants = [
-    { dir:'उत्तर-पूर्व (ईशान)', plant:'तुलसी — 5-7 पौधे', benefit:'पवित्रता + Spiritual Energy', emoji:'🌿' },
-    { dir:'पूर्व', plant:'पीले और सफेद फूल — गेंदा, चमेली', benefit:'Positivity + Happiness', emoji:'🌼' },
-    { dir:'उत्तर', plant:'Herbs — पुदीना, धनिया, ब्राह्मी', benefit:'Health + Memory', emoji:'🌱' },
-    { dir:'दक्षिण-पूर्व', plant:'एलोवेरा, गिलोय', benefit:'Healing + Immunity', emoji:'💚' },
-    { dir:'केंद्र (Center)', plant:'Meditation Corner — चटाई', benefit:'Family Peace + Sudarshan Kriya', emoji:'🧘' },
-  ]
-  const healingHerbs = [
-    { name:'ब्राह्मी', use:'Memory + Focus + Stress Relief', how:'रोज 1 गोली' },
-    { name:'अश्वगंधा', use:'Strength + Calm + Immunity', how:'रात को दूध के साथ' },
-    { name:'शंखपुष्पी', use:'Brain Power + Memory', how:'सुबह खाली पेट' },
-    { name:'गिलोय', use:'Immunity + Energy + Fever', how:'काढ़ा बनाकर' },
-    { name:'तुलसी', use:'Immunity + Spiritual + Stress', how:'5 पत्ते रोज सुबह' },
-  ]
+function KirtiGarden({ gardenData, herbData }) {
   return (
     <div style={{padding:'10px 10px 20px'}}>
       <div style={{fontSize:16,fontWeight:800,color:GREEN,textAlign:'center',padding:'8px 0 12px'}}>🌿 Spiritual Garden — Vastu Plan</div>
-      {plants.map((p,i)=>(
+      {gardenData.map((p,i)=>(
         <div key={i} style={{background:'#fff',borderRadius:12,padding:'12px 14px',marginBottom:8,borderLeft:`4px solid ${GREEN}`,boxShadow:'0 1px 5px rgba(0,0,0,0.06)'}}>
           <div style={{fontSize:20,marginBottom:4}}>{p.emoji}</div>
           <div style={{fontSize:11,fontWeight:800,color:GREEN,marginBottom:2}}>{p.dir}</div>
@@ -794,7 +669,7 @@ function KirtiGarden() {
         </div>
       ))}
       <div style={{fontSize:16,fontWeight:800,color:GREEN,textAlign:'center',padding:'12px 0 8px'}}>💊 Healing Herbs</div>
-      {healingHerbs.map((h,i)=>(
+      {herbData.map((h,i)=>(
         <div key={i} style={{background:'#e8f5e9',borderRadius:10,padding:'10px 14px',marginBottom:6,borderLeft:`3px solid ${GREEN}`}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div style={{fontSize:13,fontWeight:700,color:GREEN}}>{h.name}</div>
