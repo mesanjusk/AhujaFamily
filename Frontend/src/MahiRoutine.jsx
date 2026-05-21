@@ -85,6 +85,7 @@ export default function MahiRoutine() {
   const [milestones, setMilestones] = useState([])
   const [brandTips, setBrandTips]   = useState([])
   const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState(null)
   const [view, setView]             = useState('today')
   const [editingId, setEditingId]   = useState(null)
   const [editDraft, setEditDraft]   = useState({})
@@ -124,7 +125,8 @@ export default function MahiRoutine() {
       setCalEvents(Array.isArray(cal) ? cal : [])
       setMilestones(Array.isArray(ms) ? ms : [])
       setBrandTips(Array.isArray(bt) ? bt : [])
-    }).catch(() => {}).finally(() => setLoading(false))
+    }).catch(err => { console.error('Mahi API error:', err); setError(err?.message || 'API error') })
+       .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => { try { localStorage.setItem(DONE_KEY, JSON.stringify(done)) } catch {} }, [done])
@@ -267,6 +269,12 @@ export default function MahiRoutine() {
 
   return (
     <div style={S.root}>
+      {error && (
+        <div style={{ margin:'12px 14px 0', padding:'12px 16px', background:'#fff3cd', border:'1px solid #f0ad4e', borderRadius:12, fontSize:12, color:'#7b4d00' }}>
+          ⚠️ <strong>API Error:</strong> {error}
+          <button onClick={() => setError(null)} style={{ float:'right', background:'none', border:'none', cursor:'pointer', fontSize:14, color:'#7b4d00' }}>✕</button>
+        </div>
+      )}
       <header style={{...S.header, background:'linear-gradient(135deg,#c2185b,#880e4f)'}}>
         <div style={S.headerTop}>
           <div>
