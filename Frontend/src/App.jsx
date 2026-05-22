@@ -54,7 +54,7 @@ export default function App() {
 
       <div style={styles.header}>
         <div style={styles.om}>🕉️</div>
-        <div style={styles.title}>अहूजा परिवार</div>
+        <div style={styles.title}>Ahuja Family</div>
         <div style={styles.subtitle}>Daily Routine Planner</div>
         <div style={styles.subtitle2}>Astrology Based • Mobile First</div>
       </div>
