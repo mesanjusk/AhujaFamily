@@ -14,18 +14,7 @@ const {
 const app = express()
 const server = http.createServer(app)
 
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  process.env.SOCKET_IO_CORS_ORIGIN,
-  'http://localhost:5173',
-  'http://localhost:3000',
-].filter(Boolean)
-
-const io = socketIo(server, {
-  cors: { origin: allowedOrigins, methods: ['GET', 'POST'] },
-})
-
-app.use(cors({ origin: allowedOrigins, credentials: true }))
+app.use(cors({ origin: true, credentials: true }))
 app.use(express.json())
 
 // MongoDB connection + auto-seed on first run
