@@ -79,6 +79,10 @@ export default function Routine() {
   const [dayColors, setDayColors]   = useState([])
   const [outfitTips, setOutfitTips] = useState([])
   const [calEvents, setCalEvents]   = useState([])
+  const [numerology, setNumerology] = useState(null)
+  const [affirmations, setAffirmations] = useState([])
+  const [manifestSteps, setManifestSteps] = useState([])
+  const [dosDonts, setDosDonts]     = useState([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(null)
   const [view, setView]             = useState('today')
@@ -108,8 +112,12 @@ export default function Routine() {
       api.getWeekly('sanju'),
       api.getDayColors(),
       api.getOutfitTips('sanju'),
-      api.getCalendar(),
-    ]).then(([t, m, mn, rm, w, dc, ot, cal]) => {
+      api.getCalendar('sanju'),
+      api.getExtras('sanju', 'numerology'),
+      api.getExtras('sanju', 'affirmation'),
+      api.getExtras('sanju', 'manifest_step'),
+      api.getExtras('sanju', 'dosdonts'),
+    ]).then(([t, m, mn, rm, w, dc, ot, cal, num, aff, mst, dd]) => {
       setTasks(t || [])
       setMeals(m || [])
       setMantras(mn || [])
@@ -118,6 +126,10 @@ export default function Routine() {
       setDayColors(dc || [])
       setOutfitTips(ot || [])
       setCalEvents(cal || [])
+      setNumerology(Array.isArray(num) && num.length ? num[0] : null)
+      setAffirmations(Array.isArray(aff) ? aff : [])
+      setManifestSteps(Array.isArray(mst) ? mst : [])
+      setDosDonts(Array.isArray(dd) ? dd : [])
     }).catch(err => { console.error('Sanju API error:', err); setError(err?.message || 'API error') })
        .finally(() => setLoading(false))
   }, [])
@@ -264,7 +276,7 @@ export default function Routine() {
       </header>
 
       <nav style={{ ...S.nav, overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch' }}>
-        {[['today','📋 आज'],['weekly','📅 Weekly'],['mantras','🕉️ Mantras'],['outfit','👗 Outfit'],['calendar','📆 Calendar'],['meals','🍽️ Meals']].map(([v,l]) => (
+        {[['today','📋 आज'],['weekly','📅 Weekly'],['mantras','🕉️ Mantras'],['manifest','🌟 Manifest'],['outfit','👗 Outfit'],['calendar','📆 Calendar'],['meals','🍽️ Meals']].map(([v,l]) => (
           <button key={v} onClick={() => setView(v)} style={{ ...S.navBtn, whiteSpace:'nowrap', ...(view===v ? S.navActive : {}) }}>{l}</button>
         ))}
       </nav>
@@ -460,6 +472,7 @@ export default function Routine() {
 
       {view === 'weekly' && <WeeklyView data={weeklyPlan} />}
       {view === 'mantras' && <MantrasView mantras={mantras} remedies={remedies} />}
+      {view === 'manifest' && <ManifestView numerology={numerology} affirmations={affirmations} manifestSteps={manifestSteps} dosDonts={dosDonts} accentColor="#d46a10" personName="संजू" />}
 
       {view === 'outfit' && (() => {
         const idx = new Date().getDay()
@@ -652,6 +665,138 @@ export function CalendarView({ calEvents, calInput, setCalInput, addCalEvent, de
           ✓ Calendar में जोड़ें {parsed.length > 0 ? `(${parsed.length} events)` : ''}
         </button>
       </div>
+    </div>
+  )
+}
+
+const CHAKRA_BY_DAY = [
+  { name:'मणिपुर (Solar Plexus)', mantra:'RAM', color:'#f9a825', icon:'☀️', desc:'आत्मविश्वास + शक्ति + Business Power' },
+  { name:'सहस्रार (Crown)', mantra:'OM', color:'#7b1fa2', icon:'🌙', desc:'आध्यात्मिकता + ज्ञान + Divine Connection' },
+  { name:'मूलाधार (Root)', mantra:'LAM', color:'#c62828', icon:'🔴', desc:'स्थिरता + सुरक्षा + Grounding' },
+  { name:'अनाहत (Heart)', mantra:'YAM', color:'#2e7d32', icon:'💚', desc:'प्रेम + करुणा + रिश्ते' },
+  { name:'विशुद्ध (Throat)', mantra:'HAM', color:'#1565c0', icon:'🔵', desc:'अभिव्यक्ति + सत्य + Communication' },
+  { name:'स्वाधिष्ठान (Sacral)', mantra:'VAM', color:'#e65100', icon:'🌸', desc:'रचनात्मकता + आनंद + Creative Flow' },
+  { name:'आज्ञा (Third Eye)', mantra:'AUM', color:'#283593', icon:'🪐', desc:'अंतर्ज्ञान + दूरदर्शिता + Wisdom' },
+]
+
+export function ManifestView({ numerology, affirmations, manifestSteps, dosDonts, accentColor, personName }) {
+  const ACC = accentColor || '#d46a10'
+  const todayIdx = new Date().getDay()
+  const chakra = CHAKRA_BY_DAY[todayIdx]
+  const todayAff = affirmations.find(a => (a.dayIndex ?? a.data?.dayIndex) === todayIdx)
+  const affData = todayAff?.data || todayAff || {}
+  const dos = dosDonts.filter(d => (d.data?.type || d.type) === 'do')
+  const donts = dosDonts.filter(d => (d.data?.type || d.type) === 'dont')
+  const steps = [...manifestSteps].sort((a, b) => (a.order || 0) - (b.order || 0))
+  const numData = numerology?.data || numerology || {}
+
+  return (
+    <div style={{ padding:'16px 14px', paddingBottom:32 }}>
+      <div style={{ fontSize:20, fontWeight:800, color:ACC, marginBottom:4 }}>🌟 Manifestation Hub</div>
+      <div style={{ fontSize:12, color:'#888', marginBottom:16 }}>Numerology • Chakra • LOA • Do's & Don'ts</div>
+
+      {numData.moolank && (
+        <div style={{ background:`linear-gradient(135deg,${ACC},${ACC}cc)`, borderRadius:16, padding:20, color:'#fff', marginBottom:16 }}>
+          <div style={{ fontSize:14, fontWeight:800, marginBottom:10, opacity:0.9 }}>🔢 अंक विद्या — {personName}</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
+            <div style={{ background:'rgba(255,255,255,0.15)', borderRadius:10, padding:'10px 12px', textAlign:'center' }}>
+              <div style={{ fontSize:28, fontWeight:900 }}>{numData.moolank}</div>
+              <div style={{ fontSize:10, opacity:0.85 }}>मूलांक (Birth No)</div>
+              <div style={{ fontSize:11, marginTop:2, opacity:0.8 }}>{numData.planet?.split('+')?.[0]?.trim()}</div>
+            </div>
+            <div style={{ background:'rgba(255,255,255,0.15)', borderRadius:10, padding:'10px 12px', textAlign:'center' }}>
+              <div style={{ fontSize:28, fontWeight:900 }}>{numData.bhagyank}</div>
+              <div style={{ fontSize:10, opacity:0.85 }}>भाग्यांक (Life Path)</div>
+              <div style={{ fontSize:11, marginTop:2, opacity:0.8 }}>{numData.planet?.split('+')?.[1]?.trim()}</div>
+            </div>
+          </div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:8 }}>
+            {(numData.luckyNumbers || []).map(n => (
+              <span key={n} style={{ background:'rgba(255,255,255,0.25)', borderRadius:20, padding:'3px 10px', fontSize:13, fontWeight:700 }}>🍀 {n}</span>
+            ))}
+          </div>
+          <div style={{ fontSize:12, opacity:0.85 }}>✅ Lucky Days: {(numData.luckyDays || []).join(', ')}</div>
+          <div style={{ fontSize:12, opacity:0.85 }}>💎 Gems: {(numData.gems || []).join(', ')}</div>
+          <div style={{ fontSize:12, opacity:0.85 }}>🎨 Lucky Colors: {(numData.luckyColors || []).join(', ')}</div>
+        </div>
+      )}
+
+      <div style={{ background:`linear-gradient(135deg,${chakra.color},${chakra.color}bb)`, borderRadius:14, padding:16, color:'#fff', marginBottom:16 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6 }}>
+          <span style={{ fontSize:28 }}>{chakra.icon}</span>
+          <div>
+            <div style={{ fontSize:14, fontWeight:800 }}>आज का चक्र — {chakra.name}</div>
+            <div style={{ fontSize:11, opacity:0.85 }}>{chakra.desc}</div>
+          </div>
+        </div>
+        <div style={{ background:'rgba(255,255,255,0.2)', borderRadius:10, padding:'8px 14px', textAlign:'center' }}>
+          <div style={{ fontSize:11, opacity:0.85, marginBottom:2 }}>मंत्र — 21 बार जाप करें</div>
+          <div style={{ fontSize:22, fontWeight:900, letterSpacing:4 }}>{chakra.mantra}</div>
+        </div>
+      </div>
+
+      {affData.morning && (
+        <div style={{ background:'#fff', borderRadius:14, padding:16, marginBottom:16, border:`2px solid ${ACC}` }}>
+          <div style={{ fontSize:14, fontWeight:800, color:ACC, marginBottom:10 }}>💫 आज की Affirmation</div>
+          <div style={{ background:'#fffaf5', borderRadius:10, padding:12, marginBottom:10 }}>
+            <div style={{ fontSize:11, color:'#888', fontWeight:700, marginBottom:4 }}>🌅 सुबह</div>
+            <div style={{ fontSize:13, color:'#222', lineHeight:1.7, fontStyle:'italic' }}>"{affData.morning}"</div>
+          </div>
+          <div style={{ background:'#f5f0ff', borderRadius:10, padding:12 }}>
+            <div style={{ fontSize:11, color:'#888', fontWeight:700, marginBottom:4 }}>🌙 शाम</div>
+            <div style={{ fontSize:13, color:'#222', lineHeight:1.7, fontStyle:'italic' }}>"{affData.evening}"</div>
+          </div>
+        </div>
+      )}
+
+      {steps.length > 0 && (
+        <div style={{ background:'#fff', borderRadius:14, padding:16, marginBottom:16, border:'1px solid #eee' }}>
+          <div style={{ fontSize:14, fontWeight:800, color:ACC, marginBottom:12 }}>🪄 Manifestation Ritual</div>
+          {steps.map((s, i) => {
+            const d = s.data || s
+            return (
+              <div key={i} style={{ display:'flex', gap:12, padding:'10px 0', borderBottom: i < steps.length-1 ? '1px solid #f0f0f0' : 'none' }}>
+                <div style={{ width:36, height:36, borderRadius:'50%', background:ACC, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>{d.icon}</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:'#222', marginBottom:2 }}>{d.title}</div>
+                  <div style={{ fontSize:11, color:'#888', marginBottom:4 }}>⏱️ {d.duration}</div>
+                  <div style={{ fontSize:12, color:'#555', lineHeight:1.6 }}>{d.description}</div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {(dos.length > 0 || donts.length > 0) && (
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontSize:14, fontWeight:800, color:ACC, marginBottom:10 }}>📋 Do's & Don'ts</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+            <div>
+              <div style={{ fontSize:11, fontWeight:800, color:'#2e7d32', marginBottom:6, textAlign:'center' }}>✅ करें</div>
+              {dos.map((d, i) => {
+                const text = d.data?.text || d.text
+                return (
+                  <div key={i} style={{ background:'#e8f5e9', borderRadius:8, padding:'8px 10px', marginBottom:6, fontSize:11, color:'#1b5e20', lineHeight:1.5 }}>
+                    {text}
+                  </div>
+                )
+              })}
+            </div>
+            <div>
+              <div style={{ fontSize:11, fontWeight:800, color:'#b71c1c', marginBottom:6, textAlign:'center' }}>❌ न करें</div>
+              {donts.map((d, i) => {
+                const text = d.data?.text || d.text
+                return (
+                  <div key={i} style={{ background:'#ffebee', borderRadius:8, padding:'8px 10px', marginBottom:6, fontSize:11, color:'#7b0000', lineHeight:1.5 }}>
+                    {text}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
