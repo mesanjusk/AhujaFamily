@@ -14,28 +14,7 @@ const {
 const app = express()
 const server = http.createServer(app)
 
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  process.env.SOCKET_IO_CORS_ORIGIN,
-  'https://ahuja-family.vercel.app',
-  'https://frontend-green-nu-45.vercel.app',
-  'http://localhost:5173',
-  'http://localhost:3000',
-].filter(Boolean)
-
-function corsOrigin(origin, cb) {
-  if (!origin || allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) {
-    cb(null, true)
-  } else {
-    cb(new Error('CORS: origin not allowed — ' + origin))
-  }
-}
-
-const io = socketIo(server, {
-  cors: { origin: corsOrigin, methods: ['GET', 'POST'] },
-})
-
-app.use(cors({ origin: corsOrigin, credentials: true }))
+app.use(cors({ origin: true, credentials: true }))
 app.use(express.json())
 
 // MongoDB connection + auto-seed on first run
