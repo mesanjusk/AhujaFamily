@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { api } from './api'
-import { CalendarView } from './Routine'
+import { CalendarView, ManifestView } from './Routine'
 
 function parseTime(str) {
   if (!str) return 0
@@ -84,7 +84,12 @@ export default function KirtiRoutine() {
   const [aolSteps, setAolSteps]     = useState([])
   const [gardenData, setGardenData] = useState([])
   const [herbData, setHerbData]     = useState([])
+  const [numerology, setNumerology] = useState(null)
+  const [affirmations, setAffirmations] = useState([])
+  const [manifestSteps, setManifestSteps] = useState([])
+  const [dosDonts, setDosDonts]     = useState([])
   const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState(null)
   const [view, setView]             = useState('today')
   const [editingId, setEditingId]   = useState(null)
   const [editDraft, setEditDraft]   = useState({})
@@ -111,11 +116,15 @@ export default function KirtiRoutine() {
       api.getWeekly('kirti'),
       api.getDayColors(),
       api.getOutfitTips('kirti'),
-      api.getCalendar(),
+      api.getCalendar('kirti'),
       api.getExtras('kirti', 'aol'),
       api.getExtras('kirti', 'garden'),
       api.getExtras('kirti', 'herb'),
-    ]).then(([t, m, mn, w, dc, ot, cal, aol, grd, hrb]) => {
+      api.getExtras('kirti', 'numerology'),
+      api.getExtras('kirti', 'affirmation'),
+      api.getExtras('kirti', 'manifest_step'),
+      api.getExtras('kirti', 'dosdonts'),
+    ]).then(([t, m, mn, w, dc, ot, cal, aol, grd, hrb, num, aff, mst, dd]) => {
       setTasks(Array.isArray(t) ? t.map(x => ({...x, skippable: x.skippable !== undefined ? x.skippable : !x.pinned})) : [])
       setMeals(Array.isArray(m) ? m : [])
       setMantras(Array.isArray(mn) ? mn : [])
@@ -126,7 +135,12 @@ export default function KirtiRoutine() {
       setAolSteps(Array.isArray(aol) ? aol : [])
       setGardenData(Array.isArray(grd) ? grd : [])
       setHerbData(Array.isArray(hrb) ? hrb : [])
-    }).catch(() => {}).finally(() => setLoading(false))
+      setNumerology(Array.isArray(num) && num.length ? num[0] : null)
+      setAffirmations(Array.isArray(aff) ? aff : [])
+      setManifestSteps(Array.isArray(mst) ? mst : [])
+      setDosDonts(Array.isArray(dd) ? dd : [])
+    }).catch(err => { console.error('Kirti API error:', err); setError(err?.message || 'API error') })
+       .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => { try { localStorage.setItem(DONE_KEY, JSON.stringify(done)) } catch {} }, [done])
@@ -269,6 +283,12 @@ export default function KirtiRoutine() {
 
   return (
     <div style={S.root}>
+      {error && (
+        <div style={{ margin:'12px 14px 0', padding:'12px 16px', background:'#fff3cd', border:'1px solid #f0ad4e', borderRadius:12, fontSize:12, color:'#7b4d00' }}>
+          ⚠️ <strong>API Error:</strong> {error}
+          <button onClick={() => setError(null)} style={{ float:'right', background:'none', border:'none', cursor:'pointer', fontSize:14, color:'#7b4d00' }}>✕</button>
+        </div>
+      )}
       <header style={{...S.header, background:'linear-gradient(135deg,#00695c,#1b5e20)'}}>
         <div style={S.headerTop}>
           <div>
@@ -293,7 +313,7 @@ export default function KirtiRoutine() {
       </header>
 
       <nav style={{...S.nav, overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch'}}>
-        {[['today','📋 आज'],['weekly','📅 Weekly'],['aol','🕉️ AOL'],['garden','🌿 Garden'],['outfit','👗 Outfit'],['calendar','📆 Calendar'],['meals','🍽️ Meals']].map(([v,l])=>(
+        {[['today','📋 आज'],['weekly','📅 Weekly'],['aol','🕉️ AOL'],['manifest','🌟 Manifest'],['garden','🌿 Garden'],['outfit','👗 Outfit'],['calendar','📆 Calendar'],['meals','🍽️ Meals']].map(([v,l])=>(
           <button key={v} onClick={()=>setView(v)} style={{...S.navBtn, whiteSpace:'nowrap', ...(view===v?S.navActive:{})}}>{l}</button>
         ))}
       </nav>
@@ -502,6 +522,7 @@ export default function KirtiRoutine() {
 
       {view==='weekly' && <KirtiWeekly weeklyPlan={weeklyPlan} />}
       {view==='aol'    && <KirtiAOL mantras={mantras} aolSteps={aolSteps} />}
+      {view==='manifest' && <ManifestView numerology={numerology} affirmations={affirmations} manifestSteps={manifestSteps} dosDonts={dosDonts} accentColor={TEAL} personName="किर्ती" />}
       {view==='garden' && <KirtiGarden gardenData={gardenData} herbData={herbData} />}
 
       {view==='outfit' && (() => {

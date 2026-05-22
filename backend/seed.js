@@ -33,6 +33,7 @@ async function runSeed() {
   await WeeklyPlan.insertMany(seed.sanjuWeekly.map(w => ({ ...w, memberId: 'sanju' })))
   await Mantra.insertMany(seed.sanjuMantras.map(m => ({ ...m, memberId: 'sanju' })))
   await OutfitTip.insertMany(seed.sanjuOutfitTips.map(o => ({ ...o, memberId: 'sanju' })))
+  await Extra.insertMany(seed.sanjuExtras.map(e => ({ ...e, memberId: 'sanju' })))
 
   await Task.insertMany(seed.kirtiTasks.map(t => ({ ...t, memberId: 'kirti' })))
   await MealPlan.insertMany(seed.kirtiMeals.map(m => ({ ...m, memberId: 'kirti' })))

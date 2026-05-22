@@ -24,7 +24,7 @@ export const api = {
   batchUpdateTasks: (id, tasks) => post(`/api/members/${id}/tasks/batch`, { tasks }),
   resetTasks: id => post(`/api/members/${id}/tasks/reset`, {}),
 
-  getCalendar: () => get('/api/calendar'),
+  getCalendar: (memberId) => get(`/api/calendar${memberId ? `?memberId=${memberId}` : ''}`),
   addCalEvent: ev => post('/api/calendar', ev),
   deleteCalEvent: id => del(`/api/calendar/${id}`),
 

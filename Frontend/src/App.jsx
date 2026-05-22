@@ -9,13 +9,18 @@ export default function App() {
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  useEffect(() => {
+  function loadMembers() {
+    setLoading(true)
+    setError(null)
     api.getMembers()
       .then(data => setMembers(Array.isArray(data) ? data : []))
-      .catch(() => setMembers([]))
+      .catch(err => { console.error('Failed to load members:', err); setError(err?.message || 'API error') })
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(() => { loadMembers() }, [])
 
   useEffect(() => {
     window.history.pushState(null, '', window.location.pathname)
@@ -49,10 +54,18 @@ export default function App() {
 
       <div style={styles.header}>
         <div style={styles.om}>🕉️</div>
-        <div style={styles.title}>अहूजा परिवार</div>
+        <div style={styles.title}>Ahuja Family</div>
         <div style={styles.subtitle}>Daily Routine Planner</div>
         <div style={styles.subtitle2}>Astrology Based • Mobile First</div>
       </div>
+
+      {error && (
+        <div style={{ margin:'12px 14px 0', padding:'12px 16px', background:'#fff3cd', border:'1px solid #f0ad4e', borderRadius:12, fontSize:12, color:'#7b4d00' }}>
+          ⚠️ <strong>API Error:</strong> {error}
+          <button onClick={loadMembers} style={{ marginLeft:8, background:'#f0ad4e', border:'none', borderRadius:8, padding:'2px 10px', cursor:'pointer', fontSize:12, color:'#fff', fontWeight:700 }}>Retry</button>
+          <button onClick={() => setError(null)} style={{ float:'right', background:'none', border:'none', cursor:'pointer', fontSize:14, color:'#7b4d00' }}>✕</button>
+        </div>
+      )}
 
       <div style={styles.cardWrap}>
         {loading ? (

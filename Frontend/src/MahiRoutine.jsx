@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { api } from './api'
-import { CalendarView } from './Routine'
+import { CalendarView, ManifestView } from './Routine'
 
 function parseTime(str) {
   if (!str) return 0
@@ -84,7 +84,12 @@ export default function MahiRoutine() {
   const [calEvents, setCalEvents]   = useState([])
   const [milestones, setMilestones] = useState([])
   const [brandTips, setBrandTips]   = useState([])
+  const [numerology, setNumerology] = useState(null)
+  const [affirmations, setAffirmations] = useState([])
+  const [manifestSteps, setManifestSteps] = useState([])
+  const [dosDonts, setDosDonts]     = useState([])
   const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState(null)
   const [view, setView]             = useState('today')
   const [editingId, setEditingId]   = useState(null)
   const [editDraft, setEditDraft]   = useState({})
@@ -111,10 +116,14 @@ export default function MahiRoutine() {
       api.getWeekly('mahi'),
       api.getDayColors(),
       api.getOutfitTips('mahi'),
-      api.getCalendar(),
+      api.getCalendar('mahi'),
       api.getExtras('mahi', 'brand_milestone'),
       api.getExtras('mahi', 'brand_tip'),
-    ]).then(([t, m, mn, w, dc, ot, cal, ms, bt]) => {
+      api.getExtras('mahi', 'numerology'),
+      api.getExtras('mahi', 'affirmation'),
+      api.getExtras('mahi', 'manifest_step'),
+      api.getExtras('mahi', 'dosdonts'),
+    ]).then(([t, m, mn, w, dc, ot, cal, ms, bt, num, aff, mst, dd]) => {
       setTasks(Array.isArray(t) ? t.map(x => ({...x, skippable: x.skippable !== undefined ? x.skippable : !x.pinned})) : [])
       setMeals(Array.isArray(m) ? m : [])
       setMantras(Array.isArray(mn) ? mn : [])
@@ -124,7 +133,12 @@ export default function MahiRoutine() {
       setCalEvents(Array.isArray(cal) ? cal : [])
       setMilestones(Array.isArray(ms) ? ms : [])
       setBrandTips(Array.isArray(bt) ? bt : [])
-    }).catch(() => {}).finally(() => setLoading(false))
+      setNumerology(Array.isArray(num) && num.length ? num[0] : null)
+      setAffirmations(Array.isArray(aff) ? aff : [])
+      setManifestSteps(Array.isArray(mst) ? mst : [])
+      setDosDonts(Array.isArray(dd) ? dd : [])
+    }).catch(err => { console.error('Mahi API error:', err); setError(err?.message || 'API error') })
+       .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => { try { localStorage.setItem(DONE_KEY, JSON.stringify(done)) } catch {} }, [done])
@@ -267,6 +281,12 @@ export default function MahiRoutine() {
 
   return (
     <div style={S.root}>
+      {error && (
+        <div style={{ margin:'12px 14px 0', padding:'12px 16px', background:'#fff3cd', border:'1px solid #f0ad4e', borderRadius:12, fontSize:12, color:'#7b4d00' }}>
+          ⚠️ <strong>API Error:</strong> {error}
+          <button onClick={() => setError(null)} style={{ float:'right', background:'none', border:'none', cursor:'pointer', fontSize:14, color:'#7b4d00' }}>✕</button>
+        </div>
+      )}
       <header style={{...S.header, background:'linear-gradient(135deg,#c2185b,#880e4f)'}}>
         <div style={S.headerTop}>
           <div>
@@ -291,7 +311,7 @@ export default function MahiRoutine() {
       </header>
 
       <nav style={{...S.nav, overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch'}}>
-        {[['today','📋 आज'],['weekly','📅 Weekly'],['brand','👗 Brand'],['mantras','🕉️ Mantras'],['outfit','💃 Outfit'],['calendar','📆 Calendar'],['meals','🍽️ Meals']].map(([v,l])=>(
+        {[['today','📋 आज'],['weekly','📅 Weekly'],['brand','👗 Brand'],['mantras','🕉️ Mantras'],['manifest','🌟 Manifest'],['outfit','💃 Outfit'],['calendar','📆 Calendar'],['meals','🍽️ Meals']].map(([v,l])=>(
           <button key={v} onClick={()=>setView(v)} style={{...S.navBtn, whiteSpace:'nowrap', ...(view===v?S.navActive:{})}}>{l}</button>
         ))}
       </nav>
@@ -501,6 +521,7 @@ export default function MahiRoutine() {
       {view==='weekly'  && <MahiWeekly weeklyPlan={weeklyPlan} />}
       {view==='brand'   && <MahiBrand milestones={milestones} brandTips={brandTips} />}
       {view==='mantras' && <MahiMantras mantras={mantras} />}
+      {view==='manifest' && <ManifestView numerology={numerology} affirmations={affirmations} manifestSteps={manifestSteps} dosDonts={dosDonts} accentColor={PINK} personName="माही" />}
 
       {view==='outfit' && (() => {
         const dc = dayColors.find(c => c.dayIndex === new Date().getDay()) || {}
