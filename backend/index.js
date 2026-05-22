@@ -39,6 +39,21 @@ app.use('/api/members', require('./routes/members'))
 app.use('/api/calendar', require('./routes/calendar'))
 app.use('/api/daycolors', require('./routes/daycolors'))
 
+// Admin reseed endpoint — open in browser to refresh all MongoDB data
+app.get('/api/admin/reseed', async (req, res) => {
+  const key = req.query.key || ''
+  const secret = process.env.RESEED_SECRET || 'ahuja2024'
+  if (key !== secret) return res.status(403).send('❌ Invalid key')
+  try {
+    const { runSeed } = require('./seed')
+    await runSeed()
+    res.send('✅ Database reseeded successfully! Sabka data refresh ho gaya. 🕉️')
+  } catch (err) {
+    console.error('Reseed error:', err)
+    res.status(500).send('❌ Reseed failed: ' + err.message)
+  }
+})
+
 // WhatsApp Message API
 const AUTH_FOLDER = path.join(__dirname, 'auth')
 let sock
