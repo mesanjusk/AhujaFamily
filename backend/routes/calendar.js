@@ -3,7 +3,11 @@ const router = express.Router()
 const CalendarEvent = require('../models/CalendarEvent')
 
 router.get('/', async (req, res) => {
-  const events = await CalendarEvent.find({}).sort({ date: 1 })
+  const { memberId } = req.query
+  const query = memberId
+    ? { $or: [{ memberId: null }, { memberId }] }
+    : {}
+  const events = await CalendarEvent.find(query).sort({ date: 1 })
   res.json(events)
 })
 

@@ -7,3 +7,4 @@ Frontend/.env.local
 auth/
 *.log
 dist/
+.claude/

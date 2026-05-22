@@ -260,6 +260,180 @@ const kirtiOutfitTips = [
   { dayIndex:6, tip:'शनिवार = Shani Dasha में Black/Navy respect करता है। Dark Blue Saree = Power in Court!' },
 ]
 
+// ── SANJU EXTRAS ─────────────────────────────────────────────
+
+const sanjuExtras = [
+  // NUMEROLOGY
+  {
+    type: 'numerology',
+    data: {
+      moolank: 9,
+      bhagyank: 4,
+      planet: 'मंगल (Mars) + राहु',
+      luckyNumbers: [1, 4, 9],
+      luckyDays: ['मंगलवार', 'शनिवार', 'रविवार'],
+      luckyColors: ['लाल', 'गहरा नीला', 'नारंगी'],
+      gems: ['मूंगा (Coral)', 'गोमेद (Hessonite)'],
+      avoidNumbers: [6, 7],
+      chakra: 'Manipura (Solar Plexus)',
+      chakraMantra: 'RAM',
+      chakraColor: '#f9a825',
+      chakraSecondary: 'Muladhara (Root)',
+      chakraSecondaryColor: '#c62828',
+    },
+    order: 1,
+  },
+
+  // AFFIRMATIONS — Day 0 to 6
+  {
+    type: 'affirmation',
+    data: {
+      dayIndex: 0,
+      morning: 'मैं संजय अहूजा हूं — सूर्य की तरह शक्तिशाली। आज मेरा Empire एक कदम और आगे बढ़ेगा। ब्रह्मांड मेरी हर मेहनत को फल दे रहा है।',
+      evening: 'आज मैंने जो भी किया वह मेरे सपने की नींव है। मैं आभारी हूं — परिवार के लिए, स्वास्थ्य के लिए, और इस अवसर के लिए।',
+      category: 'business',
+    },
+    order: 2,
+  },
+  {
+    type: 'affirmation',
+    data: {
+      dayIndex: 1,
+      morning: 'मेरी Printing और Digital Business आज नई ऊंचाइयों को छुएगी। मेरे अंदर वो ताकत है जो साधारण को असाधारण बनाती है।',
+      evening: 'BP नियंत्रण में है, मन शांत है, परिवार खुश है — यही असली Empire है। मैं हर रोज़ बेहतर होता जा रहा हूं।',
+      category: 'health',
+    },
+    order: 3,
+  },
+  {
+    type: 'affirmation',
+    data: {
+      dayIndex: 2,
+      morning: 'मंगलवार — मंगल का दिन। आज मेरी ऊर्जा अपने चरम पर है। नए Clients, नए Deals, नई संभावनाएं — सब मेरी तरफ आ रहे हैं।',
+      evening: 'आज मैंने अपने लक्ष्य की तरफ एक और कदम बढ़ाया। हर छोटी जीत मुझे बड़ी जीत के करीब ले जाती है।',
+      category: 'business',
+    },
+    order: 4,
+  },
+  {
+    type: 'affirmation',
+    data: {
+      dayIndex: 3,
+      morning: 'बुध महादशा मेरी बुद्धि का सोना काल है। आज मैं अपने सबसे बड़े Business Problem का समाधान निकालूंगा।',
+      evening: 'मेरा Digital Empire बन रहा है — एक दिन, एक Decision, एक Action से। आज मैंने अपना हिस्सा किया।',
+      category: 'business',
+    },
+    order: 5,
+  },
+  {
+    type: 'affirmation',
+    data: {
+      dayIndex: 4,
+      morning: 'मेरा परिवार — किर्ती और माही — मेरी सबसे बड़ी शक्ति है। उनकी खुशी के लिए मैं हर दिन अपना सर्वश्रेष्ठ देता हूं।',
+      evening: 'गुरुवार की ऊर्जा मेरे साथ है। मेरे Investments बढ़ रहे हैं, मेरा Business फल-फूल रहा है।',
+      category: 'family',
+    },
+    order: 6,
+  },
+  {
+    type: 'affirmation',
+    data: {
+      dayIndex: 5,
+      morning: 'आज माँ लक्ष्मी का दिन है — शुक्रवार। धन, प्रेम, और समृद्धि मेरी ओर प्रवाहित हो रही है। मैं खुले दिल से स्वीकार करता हूं।',
+      evening: 'मेरे Relationships मेरी सबसे बड़ी दौलत हैं। आज मैंने जो प्यार दिया वह सौगुना होकर वापस आएगा।',
+      category: 'wealth',
+    },
+    order: 7,
+  },
+  {
+    type: 'affirmation',
+    data: {
+      dayIndex: 6,
+      morning: 'शनिवार — शनिदेव की कृपा मुझ पर है। Discipline और Consistency ही मेरा असली हथियार है। आज मैं अपना Weekly Review करूंगा और अगले हफ्ते का Empire Plan बनाऊंगा।',
+      evening: 'इस हफ्ते मैंने जो बोया, वह फसल समय पर आएगी। मैं धैर्यवान, कर्मठ, और उद्देश्यपूर्ण हूं।',
+      category: 'spiritual',
+    },
+    order: 8,
+  },
+
+  // MANIFEST STEPS
+  {
+    type: 'manifest_step',
+    data: {
+      step: 1,
+      title: 'विज़न — Empire देखें',
+      description: '5 मिनट आंखें बंद करें। अपना Printing + Digital Empire देखें — बड़ा Office, खुश Staff, बड़े Clients। Kirti खुश है, Mahi NIFT में है, BP बिल्कुल ठीक है। यह सब पहले से हो रहा है — बस आंखें खोलनी हैं।',
+      duration: '5 मिनट',
+      icon: '🌟',
+    },
+    order: 9,
+  },
+  {
+    type: 'manifest_step',
+    data: {
+      step: 2,
+      title: 'कृतज्ञता — 5 चीज़ें',
+      description: 'आज के लिए 5 Gratitude लिखें — Health के लिए, Kirti के प्यार के लिए, Mahi की प्रगति के लिए, Business के लिए, और इस खूबसूरत दिन के लिए। जो आप Thank करते हैं वह आपके जीवन में multiply होता है।',
+      duration: '5 मिनट',
+      icon: '🙏',
+    },
+    order: 10,
+  },
+  {
+    type: 'manifest_step',
+    data: {
+      step: 3,
+      title: '369 Method — Goal Anchor',
+      description: 'सुबह 3 बार लिखें: "मेरा Empire ₹1 करोड़+ Revenue कर रहा है।" दोपहर 6 बार लिखें: "मैं इसलिए यह Deserve करता हूं क्योंकि मैं रोज़ अपना 100% दे रहा हूं।" रात 9 बार महसूस करें: "यह पहले से हो रहा है — मैं इसका आनंद ले रहा हूं।"',
+      duration: '10 मिनट',
+      icon: '✍️',
+    },
+    order: 11,
+  },
+  {
+    type: 'manifest_step',
+    data: {
+      step: 4,
+      title: 'मणिपुर चक्र श्वास',
+      description: 'सीधे बैठें। पेट पर हाथ रखें। 4 सेकंड अंदर — पेट बाहर आए। 4 सेकंड रोकें। 6 सेकंड बाहर — पेट अंदर जाए। "RAM" मंत्र मन में दोहराएं। 7 बार करें। यह Manipura Chakra (Solar Plexus) को जागृत करता है — आत्मविश्वास, नेतृत्व, और Business Power का केंद्र।',
+      duration: '7 मिनट',
+      icon: '☀️',
+    },
+    order: 12,
+  },
+  {
+    type: 'manifest_step',
+    data: {
+      step: 5,
+      title: 'Scripting — Future Self का Letter',
+      description: '5 साल बाद के Sanjay की तरह लिखें: "प्रिय संजू, आज हमारी Printing Business ₹2 करोड़+ सालाना कर रही है, Digital Services ने शहर में नाम बनाया, Mahi NIFT से Graduate हुई, Kirti AOL Teacher बन गई, और मेरा BP हमेशा 120/80 रहता है..." Present tense में, detailed, emotional लिखें।',
+      duration: '10 मिनट',
+      icon: '📝',
+    },
+    order: 13,
+  },
+
+  // DOS AND DON'TS
+  { type: 'dosdonts', data: { type: 'do', text: 'रोज सुबह BP Check करें और डायरी में नोट करें — यह आपकी सबसे बड़ी ज़िम्मेदारी है', category: 'health' }, order: 14 },
+  { type: 'dosdonts', data: { type: 'do', text: 'मंगलवार और रविवार को Hanuman Chalisa पढ़ें — मंगल ग्रह की कृपा के लिए', category: 'spiritual' }, order: 15 },
+  { type: 'dosdonts', data: { type: 'do', text: 'हर दिन का 1 सबसे बड़ा Business Goal पहले खत्म करें — बाकी सब बाद में', category: 'business' }, order: 16 },
+  { type: 'dosdonts', data: { type: 'do', text: 'Lucky Numbers 1, 4, 9 — किसी भी नए Deal या Contract के लिए इन तारीखों को prefer करें', category: 'numerology' }, order: 17 },
+  { type: 'dosdonts', data: { type: 'do', text: 'Kirti के साथ रोज़ कम से कम 20 मिनट Quality Time — बगीचे में, बात में, प्यार में', category: 'relationship' }, order: 18 },
+  { type: 'dosdonts', data: { type: 'do', text: 'नारंगी, लाल, और गहरे नीले रंग पहनें — Business meetings में confidence 10x होगा', category: 'numerology' }, order: 19 },
+  { type: 'dosdonts', data: { type: 'do', text: 'पानी रोज़ 8-10 गिलास — BP Control का सबसे सस्ता और सबसे powerful उपाय', category: 'health' }, order: 20 },
+  { type: 'dosdonts', data: { type: 'do', text: 'Mahi की Fashion Brand में actively participate करें — आपका Printing Network उनका सबसे बड़ा advantage है', category: 'business' }, order: 21 },
+  { type: 'dosdonts', data: { type: 'dont', text: 'नमक और तला हुआ खाना — BP के लिए ज़हर है। "बस थोड़ा" भी नहीं चलेगा', category: 'health' }, order: 22 },
+  { type: 'dosdonts', data: { type: 'dont', text: 'Number 6 और 7 — इन तारीखों को कोई बड़ा Deal sign करने से बचें', category: 'numerology' }, order: 23 },
+  { type: 'dosdonts', data: { type: 'dont', text: 'रात 10:30 PM के बाद Phone और Screen — नींद बर्बाद होती है जो अगले दिन की Energy नष्ट करती है', category: 'health' }, order: 24 },
+  { type: 'dosdonts', data: { type: 'dont', text: 'Office की बातें घर में लाना — 7 PM बाद "Business Mode OFF" करें, वरना रिश्ते कमज़ोर होंगे', category: 'relationship' }, order: 25 },
+  { type: 'dosdonts', data: { type: 'dont', text: 'Loan या Credit पर बड़े Risk न लें बिना सोचे — Rahu aspect होने से impulsive decisions नुकसानदायक हैं', category: 'business' }, order: 26 },
+  { type: 'dosdonts', data: { type: 'dont', text: 'गुस्से में कोई Business Decision न लें — मंगल का प्रभाव कभी-कभी aggression बढ़ाता है, पहले शांत हों', category: 'spiritual' }, order: 27 },
+  { type: 'dosdonts', data: { type: 'dont', text: 'Sunday को काम नहीं — यह REST का दिन है। Body + Mind दोनों को recharge होने दें', category: 'health' }, order: 28 },
+  { type: 'dosdonts', data: { type: 'dont', text: 'दूसरों की नकारात्मक बातें मन में मत लें — आपका Bhagyank 4 है, धीरे लेकिन पक्का काम करता है', category: 'spiritual' }, order: 29 },
+]
+
+// ── KIRTI EXTRAS (extended) ────────────────────────────────
+
 const kirtiExtras = [
   { type:'aol', data:{ step:'अभी करें', action:'Sudarshan Kriya — रोज 4:45 AM', done:true }, order:1 },
   { type:'aol', data:{ step:'Bangalore', action:'Teacher Training — जल्दी जाएं — यह आपका Dharma है', done:false }, order:2 },
@@ -386,6 +560,7 @@ module.exports = {
   sanjuWeekly,
   sanjuMantras,
   sanjuOutfitTips,
+  sanjuExtras,
   kirtiTasks,
   kirtiMeals,
   kirtiWeekly,
