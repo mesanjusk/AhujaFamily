@@ -55,9 +55,25 @@ const SECTION_COLORS = {
   '🌙 रात — Wind Down':            { bg:'#fbe9e7', accent:'#7b0000' },
 }
 
-const DONE_KEY     = 'mahi_done_v3'
-const SETTINGS_KEY = 'mahi_settings_v3'
-const DEF_SETTINGS = { dayStart:'6:00 AM', dayEnd:'9:30 PM', actualStart:'' }
+const DONE_KEY       = 'mahi_done_v3'
+const SETTINGS_KEY   = 'mahi_settings_v3'
+const DEF_SETTINGS   = { dayStart:'6:00 AM', dayEnd:'9:30 PM', actualStart:'' }
+const NEXT_STEPS_KEY = 'mahi_next_steps_v1'
+
+const DEFAULT_NEXT_STEPS = [
+  { id:1,  cat:'NIFT',     task:'NIFT Counseling website check — nift.ac.in',         done:false },
+  { id:2,  cat:'NIFT',     task:'10th Marksheet original + 2 photocopy ready करें',   done:false },
+  { id:3,  cat:'NIFT',     task:'12th Admit Card / Marksheet (result आने पर)',         done:false },
+  { id:4,  cat:'NIFT',     task:'EWS Certificate — current year valid है check करें', done:false },
+  { id:5,  cat:'NIFT',     task:'Passport photos 10+ (white background)',              done:false },
+  { id:6,  cat:'NIFT',     task:'Campus preference list बनाएं (Raipur, Bhopal...)',   done:false },
+  { id:7,  cat:'NIFT',     task:'Counseling registration fee payment ready रखें',     done:false },
+  { id:8,  cat:'UCEED',    task:'JoSAA 2026 registration dates check करें',           done:false },
+  { id:9,  cat:'UCEED',    task:'IIT campus + program preference list बनाएं',         done:false },
+  { id:10, cat:'UCEED',    task:'JoSAA document upload preparation',                  done:false },
+  { id:11, cat:'Decision', task:'NIFT Fashion Comm vs IIT B.Des — family discussion', done:false },
+  { id:12, cat:'Decision', task:'Shortlisted campus visit plan बनाएं',                done:false },
+]
 
 function parseCalText(text) {
   const MONTHS = {january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12}
@@ -311,7 +327,7 @@ export default function MahiRoutine() {
       </header>
 
       <nav style={{...S.nav, overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch'}}>
-        {[['today','📋 आज'],['weekly','📅 Weekly'],['brand','👗 Brand'],['mantras','🕉️ Mantras'],['manifest','🌟 Manifest'],['outfit','💃 Outfit'],['calendar','📆 Calendar'],['meals','🍽️ Meals']].map(([v,l])=>(
+        {[['today','📋 आज'],['results','🏆 Results'],['weekly','📅 Weekly'],['brand','👗 Brand'],['mantras','🕉️ Mantras'],['manifest','🌟 Manifest'],['outfit','💃 Outfit'],['calendar','📆 Calendar'],['meals','🍽️ Meals']].map(([v,l])=>(
           <button key={v} onClick={()=>setView(v)} style={{...S.navBtn, whiteSpace:'nowrap', ...(view===v?S.navActive:{})}}>{l}</button>
         ))}
       </nav>
@@ -615,6 +631,8 @@ export default function MahiRoutine() {
         )
       })()}
 
+      {view==='results' && <MahiResults />}
+
       {showCelebrate&&(
         <div style={S.celebOverlay} onClick={()=>setShowCelebrate(false)}>
           <div style={S.celebBox}>
@@ -682,6 +700,170 @@ function MahiMantras({ mantras }) {
         <div style={{fontSize:14,fontWeight:700,color:DPINK,lineHeight:1.6}}>India की अगली बड़ी Fashion Entrepreneur&quot; 🌟</div>
         <div style={{fontSize:12,color:PINK,marginTop:8,fontWeight:600}}>🌸 ॐ ऐं सरस्वत्यै नमः</div>
       </div>
+    </div>
+  )
+}
+
+const CAT_COLORS = { NIFT:'#c2185b', UCEED:'#1565c0', Decision:'#f57f17' }
+const CAT_BG     = { NIFT:'#fce4ec', UCEED:'#e3f2fd', Decision:'#fff8e1' }
+
+function MahiResults() {
+  const [steps, setSteps] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(NEXT_STEPS_KEY)) || DEFAULT_NEXT_STEPS } catch { return DEFAULT_NEXT_STEPS }
+  })
+
+  const toggleStep = id => {
+    setSteps(prev => {
+      const next = prev.map(s => s.id === id ? { ...s, done: !s.done } : s)
+      try { localStorage.setItem(NEXT_STEPS_KEY, JSON.stringify(next)) } catch {}
+      return next
+    })
+  }
+
+  const doneCount = steps.filter(s => s.done).length
+  const pct       = Math.round((doneCount / steps.length) * 100)
+  const cats      = ['NIFT', 'UCEED', 'Decision']
+
+  return (
+    <div style={{padding:'16px 14px 30px'}}>
+
+      <div style={{background:'linear-gradient(135deg,#c2185b,#880e4f)',borderRadius:20,padding:20,color:'#fff',marginBottom:16,textAlign:'center',boxShadow:'0 4px 20px rgba(194,24,91,0.25)'}}>
+        <div style={{fontSize:44,marginBottom:6}}>🏆</div>
+        <div style={{fontSize:20,fontWeight:800,letterSpacing:0.5}}>माही के Exam Results 2026</div>
+        <div style={{fontSize:12,opacity:0.8,marginTop:4}}>Result Declared: 3 June 2026</div>
+        <div style={{background:'rgba(255,255,255,0.15)',borderRadius:12,padding:'10px 14px',marginTop:12,fontSize:13,lineHeight:1.6}}>
+          दो बड़े exams — दोनों में qualify — यही है असली talent! ✨
+        </div>
+      </div>
+
+      <div style={{background:'#fff',borderRadius:16,padding:16,marginBottom:12,border:'2px solid #f8bbd0',boxShadow:'0 2px 10px rgba(194,24,91,0.07)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14}}>
+          <div style={{width:46,height:46,background:'linear-gradient(135deg,#c2185b,#880e4f)',borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,flexShrink:0}}>👗</div>
+          <div>
+            <div style={{fontSize:16,fontWeight:800,color:'#c2185b'}}>NIFTEE 2026</div>
+            <div style={{fontSize:12,color:'#999'}}>Bachelor of Design (B.Des.) — NIFT</div>
+          </div>
+        </div>
+        {[['GAT — General Ability','14.78'],['CAT — Creative Ability','29.5'],['Situation Test','14.00']].map(([label,val])=>(
+          <div key={label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #fce4ec'}}>
+            <span style={{fontSize:13,color:'#666'}}>{label}</span>
+            <span style={{fontSize:14,fontWeight:700,color:'#333'}}>{val}</span>
+          </div>
+        ))}
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0 6px'}}>
+          <span style={{fontSize:15,fontWeight:800,color:'#c2185b'}}>Total (/ 100)</span>
+          <span style={{fontSize:24,fontWeight:900,color:'#c2185b'}}>58.28</span>
+        </div>
+        <div style={{display:'flex',gap:8,marginTop:2}}>
+          <div style={{flex:1,background:'#fdf5f7',borderRadius:12,padding:'10px',textAlign:'center'}}>
+            <div style={{fontSize:10,color:'#aaa',fontWeight:700,letterSpacing:0.5,marginBottom:3}}>COMMON RANK</div>
+            <div style={{fontSize:22,fontWeight:900,color:'#c2185b'}}>3384</div>
+          </div>
+          <div style={{flex:1,background:'linear-gradient(135deg,#fce4ec,#f8bbd0)',borderRadius:12,padding:'10px',textAlign:'center',border:'2px solid #c2185b'}}>
+            <div style={{fontSize:10,color:'#880e4f',fontWeight:700,letterSpacing:0.5,marginBottom:3}}>EWS RANK ⭐</div>
+            <div style={{fontSize:22,fontWeight:900,color:'#880e4f'}}>193</div>
+            <div style={{fontSize:10,color:'#c2185b',fontWeight:600,marginTop:2}}>Category में strong!</div>
+          </div>
+        </div>
+        <div style={{background:'#fdf0f5',borderRadius:10,padding:'8px 12px',marginTop:10,fontSize:12,color:'#880e4f',fontWeight:600}}>
+          💡 CAT में 29.5 — Creative ability सबसे अच्छी! Fashion के लिए perfect sign ✨
+        </div>
+      </div>
+
+      <div style={{background:'#fff',borderRadius:16,padding:16,marginBottom:12,border:'2px solid #bbdefb',boxShadow:'0 2px 10px rgba(21,101,192,0.07)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14}}>
+          <div style={{width:46,height:46,background:'linear-gradient(135deg,#1565c0,#0d47a1)',borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,flexShrink:0}}>🎓</div>
+          <div>
+            <div style={{fontSize:16,fontWeight:800,color:'#1565c0'}}>UCEED 2026</div>
+            <div style={{fontSize:12,color:'#999'}}>B.Des — IIT Design Campuses</div>
+          </div>
+        </div>
+        {[['Part-A (NAT + MSQ + MCQ)','111.03'],['Part-B (Drawing)','33.50']].map(([label,val])=>(
+          <div key={label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #e3f2fd'}}>
+            <span style={{fontSize:13,color:'#666'}}>{label}</span>
+            <span style={{fontSize:14,fontWeight:700,color:'#333'}}>{val}</span>
+          </div>
+        ))}
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0 6px'}}>
+          <span style={{fontSize:15,fontWeight:800,color:'#1565c0'}}>Total Score</span>
+          <span style={{fontSize:24,fontWeight:900,color:'#1565c0'}}>144.53</span>
+        </div>
+        <div style={{display:'flex',gap:8,marginTop:2}}>
+          <div style={{flex:1,background:'#e8f4fd',borderRadius:12,padding:'10px',textAlign:'center'}}>
+            <div style={{fontSize:10,color:'#aaa',fontWeight:700,letterSpacing:0.5,marginBottom:3}}>AIR</div>
+            <div style={{fontSize:22,fontWeight:900,color:'#1565c0'}}>1687</div>
+          </div>
+          <div style={{flex:1,background:'linear-gradient(135deg,#bbdefb,#90caf9)',borderRadius:12,padding:'10px',textAlign:'center',border:'2px solid #1565c0'}}>
+            <div style={{fontSize:10,color:'#0d47a1',fontWeight:700,letterSpacing:0.5,marginBottom:3}}>EWS RANK ⭐</div>
+            <div style={{fontSize:22,fontWeight:900,color:'#0d47a1'}}>65</div>
+            <div style={{fontSize:10,color:'#1565c0',fontWeight:600,marginTop:2}}>Excellent!</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{background:'#fff',borderRadius:16,padding:16,marginBottom:12,border:'2px solid #c8e6c9'}}>
+        <div style={{fontSize:15,fontWeight:800,color:'#2e7d32',marginBottom:12}}>🏫 College Options</div>
+
+        <div style={{fontSize:12,fontWeight:800,color:'#c2185b',background:'#fce4ec',padding:'4px 10px',borderRadius:6,marginBottom:8,display:'inline-block'}}>👗 NIFT — EWS Rank 193</div>
+        {['NIFT Raipur — Closest + Kirti Maa का hometown!','NIFT Bhopal — MP campus','NIFT Jodhpur — Rajasthan','NIFT Kangra (Himachal Pradesh)','NIFT Bhubaneswar'].map(c=>(
+          <div key={c} style={{display:'flex',alignItems:'flex-start',gap:8,padding:'6px 0',borderBottom:'1px solid #f5f5f5',fontSize:13,color:'#444'}}>
+            <span style={{color:'#c2185b',fontWeight:800,flexShrink:0}}>✓</span><span>{c}</span>
+          </div>
+        ))}
+
+        <div style={{fontSize:12,fontWeight:800,color:'#1565c0',background:'#e3f2fd',padding:'4px 10px',borderRadius:6,marginBottom:8,marginTop:14,display:'inline-block'}}>🎓 UCEED — EWS Rank 65</div>
+        {['IIT Guwahati B.Des','IIT Hyderabad B.Des','IIT Jodhpur B.Des','IIT Bhubaneswar B.Des','IIITDM Jabalpur — Closest to Gondia!'].map(c=>(
+          <div key={c} style={{display:'flex',alignItems:'flex-start',gap:8,padding:'6px 0',borderBottom:'1px solid #f5f5f5',fontSize:13,color:'#444'}}>
+            <span style={{color:'#1565c0',fontWeight:800,flexShrink:0}}>✓</span><span>{c}</span>
+          </div>
+        ))}
+
+        <div style={{background:'#fff8e1',borderRadius:12,padding:12,marginTop:14,border:'1px solid #ffe082'}}>
+          <div style={{fontSize:12,fontWeight:800,color:'#f57f17',marginBottom:6}}>💡 Family Recommendation</div>
+          <div style={{fontSize:12,color:'#555',lineHeight:1.8}}>
+            माही का goal = Fashion Communication + Brand Builder.
+            <strong style={{color:'#c2185b'}}> NIFT</strong> सबसे fit है — fashion industry focus, internships, network.
+            IIT = Industrial/Product Design — अलग path है।
+            <strong style={{color:'#c2185b'}}> NIFT Raipur या Bhopal</strong> — practical + close to home!
+          </div>
+        </div>
+      </div>
+
+      <div style={{background:'#fff',borderRadius:16,padding:16,marginBottom:12,border:'2px solid #e1bee7'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+          <div style={{fontSize:15,fontWeight:800,color:'#6a1b9a'}}>📋 Next Steps Checklist</div>
+          <div style={{fontSize:13,fontWeight:700,color:'#6a1b9a'}}>{doneCount}/{steps.length} done</div>
+        </div>
+        <div style={{background:'#f3e5f5',borderRadius:8,height:6,marginBottom:14,overflow:'hidden'}}>
+          <div style={{background:'linear-gradient(90deg,#c2185b,#6a1b9a)',height:'100%',width:`${pct}%`,borderRadius:8,transition:'width 0.4s'}}/>
+        </div>
+        {cats.map(cat=>(
+          <div key={cat} style={{marginBottom:10}}>
+            <div style={{fontSize:12,fontWeight:800,color:CAT_COLORS[cat],background:CAT_BG[cat],padding:'4px 10px',borderRadius:6,marginBottom:6,display:'inline-block'}}>
+              {cat==='NIFT'?'👗 NIFT':cat==='UCEED'?'🎓 UCEED':'🤔 Decision'}
+            </div>
+            {steps.filter(s=>s.cat===cat).map(s=>(
+              <div key={s.id} onClick={()=>toggleStep(s.id)}
+                style={{display:'flex',alignItems:'flex-start',gap:10,padding:'9px 6px',cursor:'pointer',borderBottom:'1px solid #f8f8f8'}}>
+                <div style={{width:22,height:22,borderRadius:6,border:`2px solid ${CAT_COLORS[s.cat]||PINK}`,background:s.done?(CAT_COLORS[s.cat]||PINK):'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1,transition:'all 0.2s'}}>
+                  {s.done&&<span style={{color:'#fff',fontSize:12,fontWeight:700}}>✓</span>}
+                </div>
+                <span style={{fontSize:13,color:s.done?'#bbb':'#333',textDecoration:s.done?'line-through':'none',lineHeight:1.5}}>{s.task}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      <div style={{background:'linear-gradient(135deg,#fce4ec,#f3e5f5)',borderRadius:16,padding:20,textAlign:'center',border:`2px solid ${PINK}`}}>
+        <div style={{fontSize:36,marginBottom:10}}>🌟</div>
+        <div style={{fontSize:15,fontWeight:800,color:'#880e4f',lineHeight:1.7,marginBottom:10}}>
+          &quot;NIFT में जाओ — Fashion की दुनिया जीतो<br/>Gondia की माही — India की next Fashion Icon!&quot;
+        </div>
+        <div style={{fontSize:13,color:PINK,fontWeight:700,marginBottom:6}}>🌸 ॐ ऐं सरस्वत्यै नमः • ॐ शुं शुक्राय नमः</div>
+        <div style={{fontSize:12,color:'#aaa'}}>जय सरस्वती माँ 🕉️</div>
+      </div>
+
     </div>
   )
 }
