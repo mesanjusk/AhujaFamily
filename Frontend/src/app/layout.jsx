@@ -7,14 +7,20 @@ export const metadata = {
   title: 'Ahuja Family',
   description: 'Family routine planner',
   manifest: '/manifest.json',
+}
+
+export const viewport = {
   themeColor: '#d46a10',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 }
 
 export default function RootLayout({ children }) {
   return (
     <html lang="hi">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="icon" type="image/svg+xml" href="/icon.svg" />
