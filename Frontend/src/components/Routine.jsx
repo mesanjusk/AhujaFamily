@@ -1,5 +1,6 @@
+'use client'
 import { useState, useEffect, useRef } from 'react'
-import { api } from './api'
+import { api } from '../lib/api'
 
 function parseTime(str) {
   if (!str) return 0

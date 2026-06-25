@@ -1,5 +1,6 @@
+'use client'
 import { useState, useEffect, useRef } from 'react'
-import { api } from './api'
+import { api } from '../lib/api'
 import { CalendarView, ManifestView } from './Routine'
 
 function parseTime(str) {

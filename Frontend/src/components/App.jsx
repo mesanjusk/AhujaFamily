@@ -1,8 +1,9 @@
+'use client'
 import { useState, useEffect } from 'react'
 import Routine from './Routine'
 import MahiRoutine from './MahiRoutine'
 import KirtiRoutine from './KirtiRoutine'
-import { api } from './api'
+import { api } from '../lib/api'
 
 export default function App() {
   const [active, setActive] = useState(null)

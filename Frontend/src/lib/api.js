@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:10000'
+const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:10000'
 
 const get = url => fetch(`${BASE}${url}`).then(r => r.json())
 const post = (url, body) => fetch(`${BASE}${url}`, {
